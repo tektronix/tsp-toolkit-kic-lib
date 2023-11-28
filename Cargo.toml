@@ -1,5 +1,5 @@
 [package]
-name = "tsp-tookit-kic-lib"
+name = "tsp-toolkit-kic-lib"
 description = "A library specifically enabling communication to the Keithley product-line of instruments"
 version = "0.10.2"
 authors = ["Keithley Instruments, LLC"]
