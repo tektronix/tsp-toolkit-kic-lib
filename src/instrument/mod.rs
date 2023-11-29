@@ -27,7 +27,7 @@ pub trait Instrument: Flash + Info + Language + Login + Script + Read + Write + 
 ///
 /// # Errors
 /// Whatever can errors can occur with [`std::io::Read`], [`std::io::Write`] or
-/// [`tsp-instrument::interface::NonBlock`].
+/// [`tsp_toolkit_kic_lib::interface::NonBlock`].
 pub fn clear_output_queue<T: Read + Write + NonBlock + ?Sized>(
     rw: &mut T,
     max_attempts: usize,

@@ -55,16 +55,15 @@ impl Login for Instrument {
 
         let mut resp: Vec<u8> = vec![0; 256];
         let _read = self.read(&mut resp)?;
-
         let resp = std::str::from_utf8(resp.as_slice())
             .unwrap_or("")
             .trim_matches(char::from(0))
             .trim();
 
-        if resp.contains("FAILURE") {
-            Ok(instrument::State::Needed)
-        } else {
+        if resp.contains("unlocked") {
             Ok(instrument::State::NotNeeded)
+        } else {
+            Ok(instrument::State::Needed)
         }
     }
 
@@ -618,7 +617,21 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(move |buf: &[u8]| buf == b"line1\nline2\nline3"[..].reader().fill_buf().unwrap())
+            .withf(|buf: &[u8]| buf == b"line1\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"line2\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"line3\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -679,7 +692,21 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(move |buf: &[u8]| buf == b"line1\nline2\nline3"[..].reader().fill_buf().unwrap())
+            .withf(|buf: &[u8]| buf == b"line1\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"line2\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"line3\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -747,7 +774,21 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(move |buf: &[u8]| buf == b"line1\nline2\nline3"[..].reader().fill_buf().unwrap())
+            .withf(|buf: &[u8]| buf == b"line1\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"line2\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"line3\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -815,7 +856,21 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(move |buf: &[u8]| buf == b"line1\nline2\nline3"[..].reader().fill_buf().unwrap())
+            .withf(|buf: &[u8]| buf == b"line1\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"line2\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"line3\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -928,5 +983,6 @@ mod unit {
         impl NonBlock for Interface {
             fn set_nonblocking(&mut self, enable: bool) -> crate::error::Result<()>;
         }
+        impl Info for Interface {}
     }
 }

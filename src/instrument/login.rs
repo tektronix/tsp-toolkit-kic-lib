@@ -11,6 +11,8 @@ pub enum State {
     /// instrument is not password protected OR the instrument is already unlocked for
     /// this client.
     NotNeeded,
+    /// The instrument requiers to be logged out from another interface first before it can be logged in.
+    LogoutNeeded,
 }
 
 /// A trait that provides the expected functionality for logging into an instrument.
@@ -23,7 +25,7 @@ pub enum State {
 /// # Examples
 /// ## No Login Functionality Needed
 /// ```no_run
-/// use tsp_instrument::{instrument::{Login, State}, InstrumentError};
+/// use tsp_toolkit_kic_lib::{instrument::{Login, State}, InstrumentError};
 ///
 /// //This instrument does not have logins
 /// struct ExampleInstrument {
@@ -35,7 +37,7 @@ pub enum State {
 ///
 /// ## Login Functionality Needed
 /// ```no_run
-/// use tsp_instrument::{instrument::{Login, State}, InstrumentError};
+/// use tsp_toolkit_kic_lib::{instrument::{Login, State}, InstrumentError};
 ///
 /// struct Example {
 ///     logged_in: bool,
@@ -71,6 +73,7 @@ pub trait Login {
     /// # Returns
     /// - [`State::Needed`]: A login is necessary, therefore [`Login::login`] should be called.
     /// - [`State::NotNeeded`]: A login is not necessary. Proceed with connection.
+    /// - [`State::LogoutNeeded`]:Logout from another interface is necessary before a login can be performed.
     ///
     /// # Default `impl`
     /// The default implementation will always return [`State::NotNeeded`] and should

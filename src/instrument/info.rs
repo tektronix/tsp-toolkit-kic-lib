@@ -1,4 +1,6 @@
 //! Define the trait and datatypes necessary to describe an instrument.
+use minidom::Element;
+use serde::{Deserialize, Serialize};
 
 use crate::{error::Result, usbtmc::UsbtmcAddr, InstrumentError};
 use std::{
@@ -141,6 +143,62 @@ impl TryFrom<&[u8]> for InstrumentInfo {
         })
     }
 }
+
+impl TryFrom<&String> for InstrumentInfo {
+    type Error = InstrumentError;
+
+    fn try_from(xml_data: &String) -> std::result::Result<Self, Self::Error> {
+        const DEVICE_NS: &str = "http://www.lxistandard.org/InstrumentIdentification/1.0";
+        if let Ok(root) = xml_data.parse::<Element>() {
+            if root.is("LXIDevice", DEVICE_NS) {
+                let mut manufacturer = None;
+                let mut model = None;
+                let mut serial_number = None;
+                let mut firmware_revision = None;
+
+                let manufacturer_op = root.get_child("Manufacturer", DEVICE_NS);
+                let model_op = root.get_child("Model", DEVICE_NS);
+                let serial_number_op = root.get_child("SerialNumber", DEVICE_NS);
+                let firmware_revision_op = root.get_child("FirmwareRevision", DEVICE_NS);
+
+                if model_op.is_none() {
+                    return Err(InstrumentError::InformationRetrievalError {
+                        details: "unable to read model".to_string(),
+                    });
+                }
+
+                if let Some(inst_manufact) = manufacturer_op {
+                    manufacturer = Some(inst_manufact.text());
+                }
+
+                if let Some(inst_model) = model_op {
+                    model = Some(inst_model.text());
+                }
+
+                if let Some(inst_serial_number) = serial_number_op {
+                    serial_number = Some(inst_serial_number.text());
+                }
+
+                if let Some(inst_firmware_rev) = firmware_revision_op {
+                    firmware_revision = Some(inst_firmware_rev.text());
+                }
+
+                return Ok(Self {
+                    vendor: manufacturer,
+                    model: model,
+                    serial_number: serial_number,
+                    firmware_rev: firmware_revision,
+                    address: None,
+                });
+            }
+        }
+        return Err(InstrumentError::InformationRetrievalError {
+            details: "unable to read model".to_string(),
+        });
+    }
+}
+
+// impl tryFrom for string lxi
 
 impl Display for InstrumentInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

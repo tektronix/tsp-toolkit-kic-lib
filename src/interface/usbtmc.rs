@@ -9,7 +9,13 @@ use std::{
 use rusb::{Context, DeviceList};
 use tmc::InstrumentHandle;
 
-use crate::{error::Result, interface, interface::NonBlock, InstrumentError};
+use crate::{
+    error::Result,
+    instrument::{info::InstrumentInfo, Info},
+    interface,
+    interface::NonBlock,
+    InstrumentError,
+};
 
 const KEITHLEY_VID: u16 = 0x05e6;
 
@@ -133,8 +139,6 @@ impl NonBlock for Stream {
     }
 }
 
-impl interface::Interface for Stream {}
-
 impl Write for Stream {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.handle.write_raw(buf)?;
@@ -144,6 +148,14 @@ impl Write for Stream {
     fn flush(&mut self) -> std::io::Result<()> {
         //Nothing to force-flush on USBTMC, handled by `write_raw` above
         Ok(())
+    }
+}
+
+impl Info for Stream {
+    // write all methods for Info trait here
+    fn info(&mut self) -> Result<InstrumentInfo> {
+        //get_info(self)
+        todo!("TODO implement info for Stream")
     }
 }
 
@@ -172,3 +184,5 @@ impl Read for Stream {
         }
     }
 }
+
+impl interface::Interface for Stream {}

@@ -1,7 +1,4 @@
-use crate::{
-    instrument::{info::get_info, Instrument},
-    InstrumentError, Interface,
-};
+use crate::{instrument::Instrument, InstrumentError, Interface};
 
 pub mod ki2600;
 pub mod tti;
@@ -11,7 +8,7 @@ impl TryFrom<Box<dyn Interface>> for Box<dyn Instrument> {
     type Error = InstrumentError;
 
     fn try_from(mut interface: Box<dyn Interface>) -> std::result::Result<Self, Self::Error> {
-        let info = get_info(interface.as_mut())?;
+        let info = interface.as_mut().info()?;
         if tti::Instrument::is(&info) {
             Ok(Box::new(tti::Instrument::new(interface)))
         } else if ki2600::Instrument::is(&info) {
