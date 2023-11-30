@@ -246,7 +246,11 @@ mod unit {
                 }
                 Ok(msg.len())
             });
-
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"password\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
         interface
             .expect_write()
             .times(..)
@@ -375,6 +379,12 @@ mod unit {
                 }
                 Ok(msg.len())
             });
+
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"password\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
             .expect_write()
@@ -510,6 +520,12 @@ mod unit {
         interface
             .expect_write()
             .times(..)
+            .withf(|buf: &[u8]| buf == b"password\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_write()
+            .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
         let mut instrument: Instrument = Instrument::new(Box::new(interface));
@@ -555,6 +571,13 @@ mod unit {
                 }
                 Ok(msg.len())
             });
+        
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"password\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
         interface
             .expect_write()
             .times(..)
@@ -641,6 +664,12 @@ mod unit {
             .withf(|buf: &[u8]| buf == b"\nendscript\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
+            interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"password\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        
         interface
             .expect_write()
             .times(..)
@@ -723,6 +752,13 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf == b"test_script.run()\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"password\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
         interface
             .expect_write()
             .times(..)
@@ -805,6 +841,13 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf == b"test_script.save()\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"password\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
         interface
             .expect_write()
             .times(..)
@@ -893,6 +936,13 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf == b"test_script.run()\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
+        
+
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"password\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
             .expect_write()
@@ -943,6 +993,12 @@ mod unit {
             .times(1)
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf == b"endflash\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"password\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
         interface
             .expect_write()
