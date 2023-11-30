@@ -571,7 +571,7 @@ mod unit {
                 }
                 Ok(msg.len())
             });
-        
+
         interface
             .expect_write()
             .times(..)
@@ -640,21 +640,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line1\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line2\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line3\n")
+            .withf(move |buf: &[u8]| buf == b"line1\nline2\nline3"[..].reader().fill_buf().unwrap())
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -664,12 +650,12 @@ mod unit {
             .withf(|buf: &[u8]| buf == b"\nendscript\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
-            interface
+        interface
             .expect_write()
             .times(..)
             .withf(|buf: &[u8]| buf == b"password\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
-        
+
         interface
             .expect_write()
             .times(..)
@@ -722,21 +708,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line1\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line2\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line3\n")
+            .withf(move |buf: &[u8]| buf == b"line1\nline2\nline3"[..].reader().fill_buf().unwrap())
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -811,21 +783,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line1\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line2\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line3\n")
+            .withf(move |buf: &[u8]| buf == b"line1\nline2\nline3"[..].reader().fill_buf().unwrap())
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -899,21 +857,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line1\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line2\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"line3\n")
+            .withf(move |buf: &[u8]| buf == b"line1\nline2\nline3"[..].reader().fill_buf().unwrap())
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -936,7 +880,6 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf == b"test_script.run()\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
-        
 
         interface
             .expect_write()
