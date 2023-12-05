@@ -4,7 +4,6 @@ use crate::{
         info::{get_info, InstrumentInfo},
         Info,
     },
-    InstrumentError,
 };
 use std::{
     io::{Read, Write},
@@ -50,7 +49,7 @@ impl Info for TcpStream {
             }
         }
         // if lxi page is not available, then get info from the instrument
-        Ok(get_info(self)?)
+        get_info(self)
     }
 }
 

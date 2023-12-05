@@ -98,6 +98,10 @@ pub enum InstrumentError {
     #[error("provided login details rejected or instrument already claimed")]
     LoginRejected,
 
+    /// The instrument is already claimed by another interface.
+    #[error("Another interface has control, logout on that interface")]
+    InterfaceLoginErr,
+
     #[error("{source}")]
     ParseIntError {
         #[from]

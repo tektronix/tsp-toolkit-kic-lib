@@ -60,9 +60,9 @@ pub enum State {
 ///         }
 ///     }
 ///
-///     fn login(&mut self, token: &[u8]) -> Result<(), InstrumentError>
+///     fn login(&mut self) -> Result<(), InstrumentError>
 ///     {
-///         self.enter_password(token.as_ref())
+///         self.enter_password()
 ///     }
 /// }
 /// ```
@@ -93,7 +93,7 @@ pub trait Login {
     ///
     /// # Errors
     /// Returns an [`InstrumentError`] if any errors occurred.
-    fn login(&mut self, _token: &[u8]) -> Result<()> {
+    fn login(&mut self) -> Result<()> {
         Ok(())
     }
 }

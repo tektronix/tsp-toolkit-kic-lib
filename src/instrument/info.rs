@@ -1,6 +1,5 @@
 //! Define the trait and datatypes necessary to describe an instrument.
 use minidom::Element;
-use serde::{Deserialize, Serialize};
 
 use crate::{error::Result, usbtmc::UsbtmcAddr, InstrumentError};
 use std::{
@@ -152,8 +151,8 @@ impl TryFrom<&String> for InstrumentInfo {
         if let Ok(root) = xml_data.parse::<Element>() {
             if root.is("LXIDevice", DEVICE_NS) {
                 let mut manufacturer = None;
-                let mut model = None;
-                let mut serial_number = None;
+                let mut model_num = None;
+                let mut serial_num = None;
                 let mut firmware_revision = None;
 
                 let manufacturer_op = root.get_child("Manufacturer", DEVICE_NS);
@@ -172,11 +171,11 @@ impl TryFrom<&String> for InstrumentInfo {
                 }
 
                 if let Some(inst_model) = model_op {
-                    model = Some(inst_model.text());
+                    model_num = Some(inst_model.text());
                 }
 
                 if let Some(inst_serial_number) = serial_number_op {
-                    serial_number = Some(inst_serial_number.text());
+                    serial_num = Some(inst_serial_number.text());
                 }
 
                 if let Some(inst_firmware_rev) = firmware_revision_op {
@@ -185,16 +184,16 @@ impl TryFrom<&String> for InstrumentInfo {
 
                 return Ok(Self {
                     vendor: manufacturer,
-                    model: model,
-                    serial_number: serial_number,
+                    model: model_num,
+                    serial_number: serial_num,
                     firmware_rev: firmware_revision,
                     address: None,
                 });
             }
         }
-        return Err(InstrumentError::InformationRetrievalError {
+        Err(InstrumentError::InformationRetrievalError {
             details: "unable to read model".to_string(),
-        });
+        })
     }
 }
 

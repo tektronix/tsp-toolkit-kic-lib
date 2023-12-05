@@ -1,5 +1,6 @@
 //! Trait definitions that need to be satisfied for any instrument.
 
+pub mod authenticate;
 pub mod firmware;
 pub mod info;
 pub mod language;
@@ -11,14 +12,13 @@ use std::{
     time::Duration,
 };
 
+use crate::interface::NonBlock;
+use crate::{error::Result, InstrumentError};
 pub use firmware::Flash;
 pub use info::Info;
 pub use language::{CmdLanguage, Language};
 pub use login::{Login, State};
 pub use script::Script;
-
-use crate::interface::NonBlock;
-use crate::{error::Result, InstrumentError};
 
 /// A marker trait that defines the traits any [`Instrument`] needs to have.
 pub trait Instrument: Flash + Info + Language + Login + Script + Read + Write + NonBlock {}

@@ -3,7 +3,9 @@ use std::io::{BufRead, Read, Write};
 use bytes::Buf;
 
 use crate::{
-    instrument::{self, info::InstrumentInfo, language, Info, Login, Script},
+    instrument::{
+        self, authenticate::Authentication, info::InstrumentInfo, language, Info, Login, Script,
+    },
     interface::Interface,
     interface::NonBlock,
     Flash, InstrumentError,
@@ -12,6 +14,7 @@ use crate::{
 pub struct Instrument {
     info: Option<InstrumentInfo>,
     interface: Box<dyn Interface>,
+    auth: Box<dyn Authentication>,
 }
 
 impl Instrument {
@@ -23,10 +26,11 @@ impl Instrument {
     }
 
     #[must_use]
-    pub const fn new(interface: Box<dyn Interface>) -> Self {
+    pub const fn new(interface: Box<dyn Interface>, auth: Box<dyn Authentication>) -> Self {
         Self {
             info: None,
             interface,
+            auth,
         }
     }
 
@@ -111,12 +115,16 @@ impl Login for Instrument {
         }
     }
 
-    fn login(&mut self, token: &[u8]) -> crate::error::Result<()> {
-        if instrument::State::NotNeeded == self.check_login()? {
+    fn login(&mut self) -> crate::error::Result<()> {
+        let inst_login_state = self.check_login()?;
+        if instrument::State::NotNeeded == inst_login_state {
             return Ok(());
         }
 
-        self.write_all(format!("password {}\n", String::from_utf8_lossy(token)).as_bytes())?;
+        let password = self.auth.prompt_password(
+            "Instrument might be locked.\n Enter the instrument password to unlock:",
+        )?;
+        self.write_all(format!("password {password}\n").as_bytes())?;
 
         if instrument::State::Needed == self.check_login()? {
             return Err(InstrumentError::LoginRejected);
@@ -179,7 +187,7 @@ mod unit {
     use mockall::{mock, Sequence};
 
     use crate::{
-        instrument::{self, info::Info, Login, Script},
+        instrument::{self, authenticate::Authentication, info::Info, Login, Script},
         interface::NonBlock,
         interface::{self},
         test_util, Flash, InstrumentError,
@@ -190,7 +198,7 @@ mod unit {
     #[test]
     fn login_not_needed() {
         let mut interface = MockInterface::new();
-
+        let mut auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         // A successful login attempt on a TTI instrument is as follows:
@@ -257,11 +265,11 @@ mod unit {
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
-        let mut instrument: Instrument = Instrument::new(Box::new(interface));
+        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
         assert_matches!(instrument.check_login(), Ok(instrument::State::NotNeeded));
 
-        assert!(instrument.login(b"secret_token").is_ok());
+        assert!(instrument.login().is_ok());
     }
 
     #[test]
@@ -269,6 +277,7 @@ mod unit {
     fn login_success() {
         let mut _interface = MockInterface::new();
         let mut interface = MockInterface::new();
+        let mut auth = MockAuthenticate::new();
 
         let mut seq = Sequence::new();
 
@@ -322,7 +331,14 @@ mod unit {
                 Ok(msg.len())
             });
 
-        // login() {write(b"login {token}")}
+        auth.expect_prompt_password()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|prompt: &str| {
+                prompt == "Instrument might be locked.\n Enter the instrument password to unlock:"
+            })
+            .returning(|_promp_str| Ok("secret_token".to_string()));
+
         interface
             .expect_write()
             .times(1)
@@ -392,11 +408,11 @@ mod unit {
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
-        let mut instrument: Instrument = Instrument::new(Box::new(interface));
+        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
         assert_matches!(instrument.check_login(), Ok(instrument::State::Needed));
 
-        assert_matches!(instrument.login(b"secret_token"), Ok(()));
+        assert_matches!(instrument.login(), Ok(()));
 
         assert_matches!(instrument.check_login(), Ok(instrument::State::NotNeeded));
     }
@@ -406,7 +422,7 @@ mod unit {
     fn login_failure() {
         let mut _interface = MockInterface::new();
         let mut interface = MockInterface::new();
-
+        let mut auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         // check_login()
@@ -458,6 +474,14 @@ mod unit {
                 }
                 Ok(msg.len())
             });
+
+        auth.expect_prompt_password()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|prompt: &str| {
+                prompt == "Instrument might be locked.\n Enter the instrument password to unlock:"
+            })
+            .returning(|_promp_str| Ok("secret_token".to_string()));
 
         // login() {write(b"login {token}")}
         interface
@@ -528,14 +552,11 @@ mod unit {
             .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
-        let mut instrument: Instrument = Instrument::new(Box::new(interface));
+        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
         assert_matches!(instrument.check_login(), Ok(instrument::State::Needed));
 
-        assert_matches!(
-            instrument.login(b"secret_token"),
-            Err(InstrumentError::LoginRejected)
-        );
+        assert_matches!(instrument.login(), Err(InstrumentError::LoginRejected));
 
         assert_matches!(instrument.check_login(), Ok(instrument::State::Needed));
     }
@@ -544,7 +565,7 @@ mod unit {
     fn info() {
         let mut _interface = MockInterface::new();
         let mut interface = MockInterface::new();
-
+        let mut auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         // check_login()
@@ -584,7 +605,7 @@ mod unit {
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
-        let mut instrument: Instrument = Instrument::new(Box::new(interface));
+        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
         let info = instrument
             .info()
@@ -604,7 +625,7 @@ mod unit {
     #[test]
     fn write_script() {
         let mut interface = MockInterface::new();
-
+        let mut auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         interface
@@ -662,7 +683,7 @@ mod unit {
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
-        let mut instrument: Instrument = Instrument::new(Box::new(interface));
+        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
         instrument
             .write_script(b"test_script", &b"line1\nline2\nline3"[..], false, false)
@@ -672,7 +693,7 @@ mod unit {
     #[test]
     fn write_script_run() {
         let mut interface = MockInterface::new();
-
+        let mut auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         interface
@@ -737,7 +758,7 @@ mod unit {
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
-        let mut instrument: Instrument = Instrument::new(Box::new(interface));
+        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
         instrument
             .write_script(b"test_script", &b"line1\nline2\nline3"[..], false, true)
@@ -747,7 +768,7 @@ mod unit {
     #[test]
     fn write_script_save() {
         let mut interface = MockInterface::new();
-
+        let mut auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         interface
@@ -812,7 +833,7 @@ mod unit {
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
-        let mut instrument: Instrument = Instrument::new(Box::new(interface));
+        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
         instrument
             .write_script(b"test_script", &b"line1\nline2\nline3"[..], true, false)
@@ -822,7 +843,7 @@ mod unit {
     #[test]
     fn write_script_save_run() {
         let mut interface = MockInterface::new();
-
+        let mut auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
         interface
             .expect_write()
@@ -892,7 +913,7 @@ mod unit {
             .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
-        let mut instrument: Instrument = Instrument::new(Box::new(interface));
+        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
         instrument
             .write_script(b"test_script", &b"line1\nline2\nline3"[..], true, true)
@@ -902,7 +923,7 @@ mod unit {
     #[test]
     fn flash_firmware() {
         let mut interface = MockInterface::new();
-
+        let mut auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         interface
@@ -949,7 +970,7 @@ mod unit {
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
-        let mut instrument: Instrument = Instrument::new(Box::new(interface));
+        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
         instrument
             .flash_firmware(test_util::SIMPLE_FAKE_TEXTUAL_FW, Some(0))
@@ -977,5 +998,15 @@ mod unit {
         }
 
         impl Info for Interface {}
+    }
+
+    // Define a mock Authenticate to be used in the tests above.
+    mock! {
+
+        Authenticate {}
+        impl Authentication for Authenticate {
+            fn prompt_password(&self, prompt: &str) -> std::io::Result<String>;
+        }
+
     }
 }
