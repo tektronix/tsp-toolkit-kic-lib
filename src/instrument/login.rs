@@ -44,7 +44,7 @@ pub enum State {
 /// }
 ///
 /// impl Example {
-///     fn enter_password(&mut self, token: &[u8]) -> Result<(), InstrumentError>{
+///     fn enter_password(&mut self) -> Result<(), InstrumentError>{
 ///         //...
 ///         self.logged_in = true;
 ///         Ok(())

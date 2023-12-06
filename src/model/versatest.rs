@@ -78,7 +78,7 @@ impl Login for Instrument {
         }
 
         let password = self.auth.prompt_password(
-            "Instrument might be locked.\n Enter the instrument password to unlock:",
+            "Instrument might be locked.\nEnter the instrument password to unlock:",
         )?;
         self.write_all(format!("password {password}\n").as_bytes())?;
 
@@ -207,7 +207,7 @@ mod unit {
     #[test]
     fn login_not_needed() {
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         // A successful login attempt on a TTI instrument is as follows:
@@ -335,7 +335,7 @@ mod unit {
             .times(1)
             .in_sequence(&mut seq)
             .withf(|prompt: &str| {
-                prompt == "Instrument might be locked.\n Enter the instrument password to unlock:"
+                prompt == "Instrument might be locked.\nEnter the instrument password to unlock:"
             })
             .returning(|_promp_str| Ok("secret_token".to_string()));
 
@@ -471,7 +471,7 @@ mod unit {
             .times(1)
             .in_sequence(&mut seq)
             .withf(|prompt: &str| {
-                prompt == "Instrument might be locked.\n Enter the instrument password to unlock:"
+                prompt == "Instrument might be locked.\nEnter the instrument password to unlock:"
             })
             .returning(|_promp_str| Ok("secret_token".to_string()));
 
@@ -549,7 +549,7 @@ mod unit {
     #[test]
     fn info() {
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         interface
@@ -601,7 +601,7 @@ mod unit {
     #[test]
     fn write_script() {
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         interface
@@ -662,7 +662,7 @@ mod unit {
     #[test]
     fn write_script_run() {
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         interface
@@ -730,7 +730,7 @@ mod unit {
     #[test]
     fn write_script_save() {
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         interface
@@ -798,7 +798,7 @@ mod unit {
     #[test]
     fn write_script_save_run() {
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         interface
@@ -873,7 +873,7 @@ mod unit {
     #[test]
     fn flash_firmware() {
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         interface
