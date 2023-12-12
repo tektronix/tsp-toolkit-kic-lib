@@ -4,7 +4,10 @@ use bytes::Buf;
 
 use crate::{
     instrument::{
-        self, authenticate::Authentication, info::InstrumentInfo, language, Info, Login, Script,
+        self,
+        authenticate::Authentication,
+        info::{get_info, InstrumentInfo},
+        language, Info, Login, Script,
     },
     interface::Interface,
     interface::NonBlock,
@@ -93,7 +96,15 @@ fn is_2600(model: impl AsRef<str>) -> bool {
     .contains(&model.as_ref())
 }
 
-impl Info for Instrument {}
+impl Info for Instrument {
+    fn info(&mut self) -> crate::error::Result<InstrumentInfo> {
+        if let Some(inst_info) = self.info.clone() {
+            return Ok(inst_info);
+        }
+
+        get_info(self)
+    }
+}
 
 impl language::Language for Instrument {}
 

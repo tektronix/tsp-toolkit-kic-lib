@@ -14,11 +14,17 @@ impl TryFrom<Box<dyn Interface>> for Box<dyn Instrument> {
         let info = interface.as_mut().info()?;
         let auth = Box::new(Authenticate {});
         if tti::Instrument::is(&info) {
-            Ok(Box::new(tti::Instrument::new(interface, auth)))
+            let mut ins = Box::new(tti::Instrument::new(interface, auth));
+            ins.as_mut().add_info(info);
+            Ok(ins)
         } else if ki2600::Instrument::is(&info) {
-            Ok(Box::new(ki2600::Instrument::new(interface, auth)))
+            let mut ins = Box::new(ki2600::Instrument::new(interface, auth));
+            ins.as_mut().add_info(info);
+            Ok(ins)
         } else if versatest::Instrument::is(&info) {
-            Ok(Box::new(versatest::Instrument::new(interface, auth)))
+            let mut ins = Box::new(versatest::Instrument::new(interface, auth));
+            ins.as_mut().add_info(info);
+            Ok(ins)
         } else {
             Err(InstrumentError::InstrumentError {
                 error: "unable to determine instrument type".to_string(),
