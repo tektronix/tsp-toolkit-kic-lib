@@ -95,11 +95,11 @@ pub enum InstrumentError {
 
     /// The provided login details were either incorrect or the instrument is already
     /// claimed and cannot be claimed again.
-    #[error("provided login details rejected or instrument already claimed")]
+    #[error("provided login details rejected or instrument already claimed.")]
     LoginRejected,
 
     /// The instrument is already claimed by another interface.
-    #[error("Another interface has control, logout on that interface")]
+    #[error("Another interface has control, logout on that interface.")]
     InterfaceLoginErr,
 
     #[error("{source}")]

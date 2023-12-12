@@ -81,29 +81,32 @@ impl Language for Instrument {
 
 impl Login for Instrument {
     fn check_login(&mut self) -> crate::error::Result<instrument::State> {
-        self.write_all(b"*STB?\n")?;
+        self.write_all(b"print('unlocked')\n")?;
+        for _i in 0..5 {
+            std::thread::sleep(Duration::from_millis(100));
+            let mut resp: Vec<u8> = vec![0; 256];
+            let _read = self.read(&mut resp)?;
+            let resp = std::str::from_utf8(resp.as_slice())
+                .unwrap_or("")
+                .trim_matches(char::from(0))
+                .trim();
 
-        std::thread::sleep(Duration::from_millis(1000));
-
-        let mut resp: Vec<u8> = vec![0; 256];
-        let _read = self.read(&mut resp)?;
-        let resp = std::str::from_utf8(resp.as_slice())
-            .unwrap_or("")
-            .trim_matches(char::from(0))
-            .trim();
-
-        if resp.contains("FAILURE") {
-            if resp.contains("LOGOUT") {
-                return Ok(instrument::State::LogoutNeeded);
+            if resp.contains("SUCCESS: Logged in") || resp.contains("unlocked") {
+                return Ok(instrument::State::NotNeeded);
             }
-            Ok(instrument::State::Needed)
-        } else {
-            Ok(instrument::State::NotNeeded)
+
+            if resp.contains("FAILURE") {
+                if resp.contains("LOGOUT") {
+                    return Ok(instrument::State::LogoutNeeded);
+                }
+                return Ok(instrument::State::Needed);
+            }
         }
+        Ok(instrument::State::Needed)
     }
 
     fn login(&mut self) -> crate::error::Result<()> {
-        let inst_login_state = self.check_login()?;
+        let mut inst_login_state = self.check_login()?;
         if instrument::State::NotNeeded == inst_login_state {
             return Ok(());
         } else if instrument::State::LogoutNeeded == inst_login_state {
@@ -114,7 +117,11 @@ impl Login for Instrument {
             "Instrument might be locked.\nEnter the instrument password to unlock:",
         )?;
         self.write_all(format!("login {password}\n").as_bytes())?;
-        if instrument::State::Needed == self.check_login()? {
+
+        inst_login_state = self.check_login()?;
+        if instrument::State::NotNeeded == inst_login_state {
+            println!("Login successful.");
+        } else if instrument::State::Needed == inst_login_state {
             return Err(InstrumentError::LoginRejected);
         }
 
@@ -195,20 +202,13 @@ mod unit {
     #[test]
     fn login_not_needed() {
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
-
-        // // A successful login attempt on a TTI instrument is as follows:
-        // // 1. Instrument connects to interface
-        // // 2. Instrument sends "*STB?\n"
-        // // 3. Instrument reads from interface and receives status byte
-        // // 4. Instrument returns `instrument::State::NotNeeded`
-
         interface
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"*STB?\n")
+            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -217,7 +217,7 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 2)
             .return_once(|buf: &mut [u8]| {
-                let msg = b"0\n";
+                let msg = b"unlocked\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
                         .reader()
@@ -232,7 +232,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"*STB?\n")
+            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -241,7 +241,7 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 2)
             .return_once(|buf: &mut [u8]| {
-                let msg = b"0\n";
+                let msg = b"unlocked\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
                         .reader()
@@ -280,7 +280,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"*STB?\n")
+            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -294,7 +294,7 @@ mod unit {
                     let bytes = msg[..]
                         .reader()
                         .read(buf)
-                        .expect("MockInterface should write to buffer");
+                        .expect("MockInstrument should write to buffer");
                     assert_eq!(bytes, msg.len());
                 }
                 Ok(msg.len())
@@ -305,7 +305,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"*STB?\n")
+            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -319,7 +319,7 @@ mod unit {
                     let bytes = msg[..]
                         .reader()
                         .read(buf)
-                        .expect("MockInterface should write to buffer");
+                        .expect("MockInstrument should write to buffer");
                     assert_eq!(bytes, msg.len());
                 }
                 Ok(msg.len())
@@ -346,21 +346,21 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"*STB?\n")
+            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
             .expect_read()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf.len() >= 2)
+            .withf(|buf: &[u8]| buf.len() >= 8)
             .return_once(|buf: &mut [u8]| {
-                let msg = b"0\n";
+                let msg = b"unlocked\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
                         .reader()
                         .read(buf)
-                        .expect("MockInterface should write to buffer");
+                        .expect("MockInstrument should write to buffer");
                     assert_eq!(bytes, msg.len());
                 }
                 Ok(msg.len())
@@ -371,21 +371,21 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"*STB?\n")
+            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
             .expect_read()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf.len() >= 2)
+            .withf(|buf: &[u8]| buf.len() >= 8)
             .return_once(|buf: &mut [u8]| {
-                let msg = b"0\n";
+                let msg = b"unlocked\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
                         .reader()
                         .read(buf)
-                        .expect("MockInterface should write to buffer");
+                        .expect("MockInstrument should write to buffer");
                     assert_eq!(bytes, msg.len());
                 }
                 Ok(msg.len())
@@ -417,12 +417,11 @@ mod unit {
         let mut auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
-        // check_login()
         interface
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"*STB?\n")
+            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -436,7 +435,7 @@ mod unit {
                     let bytes = msg[..]
                         .reader()
                         .read(buf)
-                        .expect("MockInterface should write to buffer");
+                        .expect("MockInstrument should write to buffer");
                     assert_eq!(bytes, msg.len());
                 }
                 Ok(msg.len())
@@ -447,7 +446,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"*STB?\n")
+            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -461,7 +460,7 @@ mod unit {
                     let bytes = msg[..]
                         .reader()
                         .read(buf)
-                        .expect("MockInterface should write to buffer");
+                        .expect("MockInstrument should write to buffer");
                     assert_eq!(bytes, msg.len());
                 }
                 Ok(msg.len())
@@ -475,7 +474,6 @@ mod unit {
             })
             .returning(|_promp_str| Ok("secret_token".to_string()));
 
-        // login() {write(b"login {token}")}
         interface
             .expect_write()
             .times(1)
@@ -488,7 +486,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"*STB?\n")
+            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -502,7 +500,7 @@ mod unit {
                     let bytes = msg[..]
                         .reader()
                         .read(buf)
-                        .expect("MockInterface should write to buffer");
+                        .expect("MockInstrument should write to buffer");
                     assert_eq!(bytes, msg.len());
                 }
                 Ok(msg.len())
@@ -513,7 +511,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"*STB?\n")
+            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -527,12 +525,11 @@ mod unit {
                     let bytes = msg[..]
                         .reader()
                         .read(buf)
-                        .expect("MockInterface should write to buffer");
+                        .expect("MockInstrument should write to buffer");
                     assert_eq!(bytes, msg.len());
                 }
                 Ok(msg.len())
             });
-
         interface
             .expect_write()
             .times(..)

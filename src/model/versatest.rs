@@ -67,33 +67,44 @@ impl Language for Instrument {}
 impl Login for Instrument {
     fn check_login(&mut self) -> crate::error::Result<instrument::State> {
         self.write_all(b"print('unlocked')\n")?;
+        for _i in 0..5 {
+            std::thread::sleep(Duration::from_millis(100));
+            let mut resp: Vec<u8> = vec![0; 256];
+            let _read = self.read(&mut resp)?;
+            let resp = std::str::from_utf8(resp.as_slice())
+                .unwrap_or("")
+                .trim_matches(char::from(0))
+                .trim();
 
-        let mut resp: Vec<u8> = vec![0; 256];
-        let _read = self.read(&mut resp)?;
-        let resp = std::str::from_utf8(resp.as_slice())
-            .unwrap_or("")
-            .trim_matches(char::from(0))
-            .trim();
-
-        if resp.contains("unlocked") {
-            Ok(instrument::State::NotNeeded)
-        } else {
-            Ok(instrument::State::Needed)
+            if resp.contains("unlocked") {
+                return Ok(instrument::State::NotNeeded);
+            }
+            if resp.contains("Port in use") {
+                return Ok(instrument::State::LogoutNeeded);
+            }
         }
+
+        Ok(instrument::State::Needed)
     }
 
     fn login(&mut self) -> crate::error::Result<()> {
-        let inst_login_state = self.check_login()?;
+        let mut inst_login_state = self.check_login()?;
         if instrument::State::NotNeeded == inst_login_state {
             return Ok(());
+        } else if instrument::State::LogoutNeeded == inst_login_state {
+            return Err(InstrumentError::InterfaceLoginErr);
         }
 
         let password = self.auth.prompt_password(
             "Instrument might be locked.\nEnter the instrument password to unlock:",
         )?;
+
         self.write_all(format!("password {password}\n").as_bytes())?;
 
-        if instrument::State::Needed == self.check_login()? {
+        inst_login_state = self.check_login()?;
+        if instrument::State::NotNeeded == inst_login_state {
+            println!("Login successful.");
+        } else if instrument::State::Needed == inst_login_state {
             return Err(InstrumentError::LoginRejected);
         }
 
@@ -302,10 +313,10 @@ mod unit {
 
         interface
             .expect_read()
-            .times(1)
+            .times(5)
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 8)
-            .return_once(|buf: &mut [u8]| {
+            .returning(|buf: &mut [u8]| {
                 let msg = b"FAILURE\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
@@ -327,10 +338,10 @@ mod unit {
 
         interface
             .expect_read()
-            .times(1)
+            .times(5)
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 8)
-            .return_once(|buf: &mut [u8]| {
+            .returning(|buf: &mut [u8]| {
                 let msg = b"FAILURE\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
@@ -438,10 +449,10 @@ mod unit {
 
         interface
             .expect_read()
-            .times(1)
+            .times(5)
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 8)
-            .return_once(|buf: &mut [u8]| {
+            .returning(|buf: &mut [u8]| {
                 let msg = b"FAILURE\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
@@ -463,10 +474,10 @@ mod unit {
 
         interface
             .expect_read()
-            .times(1)
+            .times(5)
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 8)
-            .return_once(|buf: &mut [u8]| {
+            .returning(|buf: &mut [u8]| {
                 let msg = b"FAILURE\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
@@ -503,10 +514,10 @@ mod unit {
 
         interface
             .expect_read()
-            .times(1)
+            .times(5)
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 8)
-            .return_once(|buf: &mut [u8]| {
+            .returning(|buf: &mut [u8]| {
                 let msg = b"FAILURE\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
@@ -528,10 +539,10 @@ mod unit {
 
         interface
             .expect_read()
-            .times(1)
+            .times(5)
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 8)
-            .return_once(|buf: &mut [u8]| {
+            .returning(|buf: &mut [u8]| {
                 let msg = b"FAILURE\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
