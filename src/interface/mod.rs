@@ -43,8 +43,9 @@ impl Info for TcpStream {
             let resp = reqwest::blocking::get(&uri);
             if let Ok(response) = resp {
                 if let Ok(txt) = response.text() {
-                    let info = InstrumentInfo::try_from(&txt)?;
-                    return Ok(info);
+                    if let Ok(info) = InstrumentInfo::try_from(&txt) {
+                        return Ok(info);
+                    }
                 }
             }
         }
