@@ -113,9 +113,8 @@ impl Login for Instrument {
             return Err(InstrumentError::InterfaceLoginErr);
         }
 
-        let password = self.auth.prompt_password(
-            "Instrument might be locked.\nEnter the instrument password to unlock:",
-        )?;
+        println!("Enter the password to unlock the instrument:");
+        let password = self.auth.read_password()?;
         self.write_all(format!("login {password}\n").as_bytes())?;
 
         inst_login_state = self.check_login()?;
@@ -325,13 +324,10 @@ mod unit {
                 Ok(msg.len())
             });
 
-        auth.expect_prompt_password()
+        auth.expect_read_password()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|prompt: &str| {
-                prompt == "Instrument might be locked.\nEnter the instrument password to unlock:"
-            })
-            .returning(|_promp_str| Ok("secret_token".to_string()));
+            .returning(|| Ok("secret_token".to_string()));
 
         // login() {write(b"login {token}")}
         interface
@@ -466,13 +462,10 @@ mod unit {
                 Ok(msg.len())
             });
 
-        auth.expect_prompt_password()
+        auth.expect_read_password()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|prompt: &str| {
-                prompt == "Instrument might be locked.\nEnter the instrument password to unlock:"
-            })
-            .returning(|_promp_str| Ok("secret_token".to_string()));
+            .returning(|| Ok("secret_token".to_string()));
 
         interface
             .expect_write()
@@ -1023,7 +1016,7 @@ mod unit {
 
         Authenticate {}
         impl Authentication for Authenticate {
-            fn prompt_password(&self, prompt: &str) -> std::io::Result<String>;
+            fn read_password(&self) -> std::io::Result<String>;
         }
 
     }

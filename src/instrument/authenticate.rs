@@ -10,20 +10,17 @@ pub trait Authentication {
     ///
     /// Prompts user for a password.
     ///
-    /// # Arguments
-    /// prompt - The message to display to the user.
-    ///
     /// # Errors
     ///
     /// Returns an [`std::io::Error`] if any errors occurred.
     ///
-    fn prompt_password(&self, prompt: &str) -> std::io::Result<String>;
+    fn read_password(&self) -> std::io::Result<String>;
 }
 
 pub struct Authenticate {}
 
 impl Authentication for Authenticate {
-    fn prompt_password(&self, prompt: &str) -> std::io::Result<String> {
-        rpassword::prompt_password(prompt)
+    fn read_password(&self) -> std::io::Result<String> {
+        rpassword::read_password()
     }
 }
