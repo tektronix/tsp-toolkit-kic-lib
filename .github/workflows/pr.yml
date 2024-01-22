@@ -176,5 +176,82 @@ jobs:
             !target/${{matrix.target_triple}}/**/*.d
             !target/${{matrix.target_triple}}/**/*.rlib
 
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      checks: write
+      pull-requests: read
+    needs:
+      - build
+      - lint
+      - style
+      - test
+      - code_coverage
+      - sbom
+    if: ${{ endsWith(github.base_ref, 'main') && contains(github.head_ref, 'release') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Get RC Version
+        id: lasttag
+        run: |
+          COMMIT="${{github.sha}}"
+          V="${{github.head_ref}}"
+          V="${V#release/}"
+
+          if ${{! github.event.pull_request.merged}}; then
+            V="${V}-$(git tag --list ${V}* | wc -l)"
+          fi
+
+          CL=${V#v}
+          CL=${CL%-*}
+
+          echo "version=${V}" >> $GITHUB_OUTPUT
+          echo "cl_version=${CL}" >> $GITHUB_OUTPUT
+          echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
+      - run: 'git tag --list ${V}*'
+      - name: Get Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: executable
+          path: target
+      - name: Get SBOM
+        uses: actions/download-artifact@v3
+        with:
+          name: software-bom
+          path: sbom
+      - name: Get Changelog for this Tag
+        id: changelog
+        uses: coditory/changelog-parser@v1
+        with:
+          version: ${{steps.lasttag.outputs.cl_version}}
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          name: ${{steps.lasttag.outputs.version}}
+          artifacts: target/*,sbom/**/*
+          body: |
+            ## Features Requests / Bugs
+
+            If you find issues or have a feature request, please enter a [new issue on GitHub](${{github.server_url}}/${{github.repository}}/issues/new).
+
+            ## Installation
+
+            View the installation instructions in the [README](${{github.server_url}}/${{github.repository}}/blob/main/README.md)
+
+            ## Changelog
+
+            ${{steps.changelog.outputs.description}}
+
+          prerelease: ${{! github.event.pull_request.merged}}
+          commit: ${{steps.lasttag.outputs.commit}}
+          makeLatest: true
+          tag: ${{steps.lasttag.outputs.version}}
+
 
 
