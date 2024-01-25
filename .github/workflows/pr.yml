@@ -210,11 +210,6 @@ jobs:
           echo "cl_version=${CL}" >> $GITHUB_OUTPUT
           echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
       - run: 'git tag --list ${V}*'
-      - name: Get Artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: executable
-          path: target
       - name: Get SBOM
         uses: actions/download-artifact@v3
         with:
@@ -229,7 +224,7 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           name: ${{steps.lasttag.outputs.version}}
-          artifacts: target/*,sbom/**/*
+          artifacts: sbom/**/*
           body: |
             ## Features Requests / Bugs
 
