@@ -50,13 +50,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Install Tools
-        run: |
-          npm ci --devDependencies
       - name: Generate Rust BOM
         run: cargo cyclonedx --format json --output-prefix cargo --output-cdx --all
-      - name: Generate NPM BOM
-        run: npx @cyclonedx/cyclonedx-npm --output-format JSON --package-lock-only --output-reproducible --output-file npm.cdx.json
       - name: Upload Results
         uses: actions/upload-artifact@v3
         with:
