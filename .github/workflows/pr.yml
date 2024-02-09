@@ -50,13 +50,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Install Tools
-        run: |
-          npm ci --devDependencies
       - name: Generate Rust BOM
         run: cargo cyclonedx --format json --output-prefix cargo --output-cdx --all
-      - name: Generate NPM BOM
-        run: npx @cyclonedx/cyclonedx-npm --output-format JSON --package-lock-only --output-reproducible --output-file npm.cdx.json
       - name: Upload Results
         uses: actions/upload-artifact@v3
         with:
@@ -215,11 +210,6 @@ jobs:
           echo "cl_version=${CL}" >> $GITHUB_OUTPUT
           echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
       - run: 'git tag --list ${V}*'
-      - name: Get Artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: executable
-          path: target
       - name: Get SBOM
         uses: actions/download-artifact@v3
         with:
@@ -234,7 +224,7 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           name: ${{steps.lasttag.outputs.version}}
-          artifacts: target/*,sbom/**/*
+          artifacts: sbom/**/*
           body: |
             ## Features Requests / Bugs
 
