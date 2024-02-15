@@ -19,7 +19,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [0.13.2]
 
 ### Fixed
-- Updated project manifests to have update version info and dev dependencies
+- Updated project manifests to have update version info
 
 ## [0.13.0]
 
