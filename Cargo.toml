@@ -19,7 +19,6 @@ rusb = "0.9.1"
 chrono = "0.4.30"
 minidom = "0.15.0"
 reqwest = { version = "^0.10", features = ["blocking"] }
-#oklib-rs = { git = "https://git.keithley.com/trebuchet/teaspoon/oklib-rs.git", branch = "main", optional = true }
 
 [dev-dependencies]
 anyhow = "1.0.69"
