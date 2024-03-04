@@ -95,7 +95,7 @@ impl Login for Instrument {
             return Err(InstrumentError::InterfaceLoginErr);
         }
 
-        println!("Enter the password to unlock the instrument:");
+        println!("Instrument might be locked.\nEnter the password to unlock the instrument:");
         let password = self.auth.read_password()?;
         self.write_all(format!("password {password}\n").as_bytes())?;
 
