@@ -7,21 +7,21 @@ edition = "2021"
 repository = "https://github.com/TEK-Engineering/tsp-toolkit-kic-lib"
 
 [dependencies]
-bytes = "1.4.0"
-phf = { version = "0.11.1", features = ["macros"] }
-rpassword = "7.2.0"
-serde = { version = "1.0.152", features = ["derive"] }
-serde_json = "1.0.93"
-thiserror = "1.0.38"
+bytes = "1"
+phf = { version = "0.11", features = ["macros"] }
+rpassword = "7"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
 tmc = { git = "https://github.com/esarver/rusb-usbtmc" }
 tracing = { version = "0.1", features = ["async-await"] }
-rusb = "0.9.1"
-chrono = "0.4.30"
-minidom = "0.15.0"
-reqwest = { version = "^0.10", features = ["blocking"] }
+rusb = "0.9"
+chrono = "0.4"
+minidom = "0.15"
+reqwest = { version = "0.11", features = ["blocking"] }
 
 [dev-dependencies]
-anyhow = "1.0.69"
+anyhow = "1"
 bytes = "1"
-colored = "2.0.0"
-mockall = { version = "0.11.4", features = ["nightly"] }
+colored = "2"
+mockall = { version = "0.12", features = ["nightly"] }

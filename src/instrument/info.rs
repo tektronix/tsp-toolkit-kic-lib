@@ -112,7 +112,6 @@ impl TryFrom<&[u8]> for InstrumentInfo {
                 (
                     Some(String::from_utf8_lossy(v).to_string()),
                     String::from_utf8_lossy(m)
-                        .to_string()
                         .split("MODEL ")
                         .last()
                         .map(std::string::ToString::to_string),
