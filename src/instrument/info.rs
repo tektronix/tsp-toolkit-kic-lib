@@ -16,7 +16,7 @@ use std::{
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ConnectionAddr {
-    /// A LAN connection is created with a [`SocketAddr`], which includes an IpAddr and
+    /// A LAN connection is created with a [`SocketAddr`], which includes an [`IpAddr`] and
     /// a port for the connection.
     Lan(SocketAddr),
 
@@ -112,7 +112,6 @@ impl TryFrom<&[u8]> for InstrumentInfo {
                 (
                     Some(String::from_utf8_lossy(v).to_string()),
                     String::from_utf8_lossy(m)
-                        .to_string()
                         .split("MODEL ")
                         .last()
                         .map(std::string::ToString::to_string),

@@ -170,8 +170,6 @@ impl NonBlock for Instrument {
 impl Drop for Instrument {
     fn drop(&mut self) {
         let _ = self.write_all(b"logout\n");
-        std::thread::sleep(Duration::from_millis(1000));
-        let _ = self.write_all(b"abort\n");
     }
 }
 

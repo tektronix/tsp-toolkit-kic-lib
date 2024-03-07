@@ -40,7 +40,7 @@ impl Info for TcpStream {
         if let Ok(ip_addr) = ip_addr {
             let ip_addr = ip_addr.ip();
             let uri = format!("http://{ip_addr}/lxi/identification");
-            let resp = reqwest::blocking::get(&uri);
+            let resp = reqwest::blocking::get(uri);
             if let Ok(response) = resp {
                 if let Ok(txt) = response.text() {
                     if let Ok(info) = InstrumentInfo::try_from(&txt) {

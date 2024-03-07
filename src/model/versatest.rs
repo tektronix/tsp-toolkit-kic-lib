@@ -200,12 +200,6 @@ impl NonBlock for Instrument {
     }
 }
 
-impl Drop for Instrument {
-    fn drop(&mut self) {
-        let _ = self.interface.write_all(b"abort\n");
-    }
-}
-
 #[cfg(test)]
 mod unit {
     use std::{
