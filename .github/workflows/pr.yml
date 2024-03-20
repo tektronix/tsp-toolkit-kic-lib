@@ -56,7 +56,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Generate Rust BOM
-        run: cargo cyclonedx --format json --output-prefix cargo --output-cdx --all
+        run: cargo cyclonedx --format json --all --describe crate -vvv
       - name: Upload Results
         uses: actions/upload-artifact@v3
         with:
@@ -75,8 +75,9 @@ jobs:
     steps:
       - name: Tool Versions
         run: |
-          cargo install cargo-tarpaulin
-          cargo tarpaulin --version
+          # TODO reinstate after this issue closes: https://github.com/xd009642/tarpaulin/issues/1493
+          # cargo install cargo-tarpaulin
+          # cargo tarpaulin --version
           cargo --version
           grcov --version
       - name: Checkout
@@ -90,17 +91,18 @@ jobs:
       - name: Run Tests
         run: |
           mkdir -p "${{env.TEST_DIR}}"
-          cargo +nightly tarpaulin --verbose --all-features --workspace --timeout 120 --engine llvm --out xml --output-dir ${{env.TEST_DIR}}
+          # TODO reinstate after this issue closes: https://github.com/xd009642/tarpaulin/issues/1493
+          # cargo +nightly tarpaulin --verbose --all-features --workspace --timeout 120 --engine llvm --out xml --output-dir ${{env.TEST_DIR}}
           cargo test --all -- -Z unstable-options --format json --report-time > ${{env.TEST_DIR}}/cargo_test.json
         env:
           CARGO_HOME: ".cargo"
           TEST_DIR: "test-results"
-      - name: Process Test Results
-        run: |
-          cat ${{env.TEST_DIR}}/cargo_test.json | cargo2junit > ${{env.TEST_DIR}}/report.xml
-        env:
-          CARGO_HOME: ".cargo"
-          TEST_DIR: "test-results"
+      # - name: Process Test Results
+      #   run: |
+      #     cat ${{env.TEST_DIR}}/cargo_test.json | cargo2junit > ${{env.TEST_DIR}}/report.xml
+      #   env:
+      #     CARGO_HOME: ".cargo"
+      #     TEST_DIR: "test-results"
       - name: Upload Results
         uses: actions/upload-artifact@v3
         if: ${{always()}}
