@@ -16,7 +16,7 @@ use std::{
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ConnectionAddr {
-    /// A LAN connection is created with a [`SocketAddr`], which includes an IpAddr and
+    /// A LAN connection is created with a [`SocketAddr`], which includes an [`IpAddr`] and
     /// a port for the connection.
     Lan(SocketAddr),
 
