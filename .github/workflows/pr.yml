@@ -56,7 +56,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Generate Rust BOM
-        run: cargo cyclonedx --format json --output-prefix cargo --output-cdx --all
+        run: cargo cyclonedx --format json --all --describe crate -vvv
       - name: Upload Results
         uses: actions/upload-artifact@v3
         with:
