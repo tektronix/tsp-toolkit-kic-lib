@@ -21,7 +21,6 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Fixed
 - Update Dependencies (TSP-576)
 
-
 ## [0.13.2]
 
 ### Fixed

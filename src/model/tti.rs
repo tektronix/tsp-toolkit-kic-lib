@@ -1,5 +1,6 @@
 use std::{
     io::{BufRead, Read, Write},
+    thread,
     time::Duration,
 };
 
@@ -69,6 +70,7 @@ impl Language for Instrument {
     fn get_language(&mut self) -> Result<CmdLanguage, InstrumentError> {
         self.write_all(b"*LANG?\n")?;
         let mut lang: Vec<u8> = vec![0; 16];
+        thread::sleep(Duration::from_millis(500));
         let _read = self.read(&mut lang)?;
         String::from_utf8_lossy(&lang).to_string().as_str().parse()
     }
@@ -81,17 +83,17 @@ impl Language for Instrument {
 
 impl Login for Instrument {
     fn check_login(&mut self) -> crate::error::Result<instrument::State> {
-        self.write_all(b"print('unlocked')\n")?;
+        self.write_all(b"*TST?\n")?;
         for _i in 0..5 {
             std::thread::sleep(Duration::from_millis(100));
             let mut resp: Vec<u8> = vec![0; 256];
-            let _read = self.read(&mut resp)?;
+            let _read_bytes = self.read(&mut resp)?;
             let resp = std::str::from_utf8(resp.as_slice())
                 .unwrap_or("")
                 .trim_matches(char::from(0))
                 .trim();
 
-            if resp.contains("SUCCESS: Logged in") || resp.contains("unlocked") {
+            if resp.contains("SUCCESS: Logged in") || resp.contains('0') {
                 return Ok(instrument::State::NotNeeded);
             }
 
@@ -170,6 +172,7 @@ impl NonBlock for Instrument {
 impl Drop for Instrument {
     fn drop(&mut self) {
         let _ = self.write_all(b"logout\n");
+        thread::sleep(Duration::from_millis(500));
     }
 }
 
@@ -184,12 +187,7 @@ mod unit {
     use mockall::{mock, Sequence};
 
     use crate::{
-        instrument::{
-            self,
-            authenticate::{Authenticate, Authentication},
-            info::Info,
-            Language, Login, Script,
-        },
+        instrument::{self, authenticate::Authentication, info::Info, Language, Login, Script},
         interface::{self, NonBlock},
         test_util, Flash, InstrumentError,
     };
@@ -205,7 +203,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .withf(|buf: &[u8]| buf == b"*TST?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -214,7 +212,7 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 2)
             .return_once(|buf: &mut [u8]| {
-                let msg = b"unlocked\n";
+                let msg = b"0\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
                         .reader()
@@ -229,7 +227,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .withf(|buf: &[u8]| buf == b"*TST?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -238,7 +236,7 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 2)
             .return_once(|buf: &mut [u8]| {
-                let msg = b"unlocked\n";
+                let msg = b"0\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
                         .reader()
@@ -277,7 +275,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .withf(|buf: &[u8]| buf == b"*TST?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -302,7 +300,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .withf(|buf: &[u8]| buf == b"*TST?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -340,7 +338,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .withf(|buf: &[u8]| buf == b"*TST?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -349,7 +347,7 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 8)
             .return_once(|buf: &mut [u8]| {
-                let msg = b"unlocked\n";
+                let msg = b"0\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
                         .reader()
@@ -365,7 +363,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .withf(|buf: &[u8]| buf == b"*TST?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -374,7 +372,7 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 8)
             .return_once(|buf: &mut [u8]| {
-                let msg = b"unlocked\n";
+                let msg = b"0\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
                         .reader()
@@ -415,7 +413,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .withf(|buf: &[u8]| buf == b"*TST?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -440,7 +438,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .withf(|buf: &[u8]| buf == b"*TST?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -477,7 +475,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .withf(|buf: &[u8]| buf == b"*TST?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -502,7 +500,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .withf(|buf: &[u8]| buf == b"*TST?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -544,7 +542,7 @@ mod unit {
     #[test]
     fn info() {
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         interface
@@ -608,7 +606,7 @@ mod unit {
     #[test]
     fn get_language_tsp() {
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         interface
@@ -656,7 +654,7 @@ mod unit {
     #[test]
     fn get_language_scpi() {
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
         interface
             .expect_write()
@@ -703,7 +701,7 @@ mod unit {
     #[test]
     fn change_language() {
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         interface
@@ -757,7 +755,7 @@ mod unit {
             (*b"\nendscript\n").into(),
         ];
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         //Accept any number of flushes
@@ -802,7 +800,7 @@ mod unit {
             (*b"test_script.run()\n").into(),
         ];
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         //Accept any number of flushes
@@ -847,7 +845,7 @@ mod unit {
             (*b"test_script.save()\n").into(),
         ];
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         //Accept any number of flushes
@@ -894,7 +892,7 @@ mod unit {
             (*b"test_script.run()\n").into(),
         ];
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         //Accept any number of flushes

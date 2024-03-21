@@ -220,7 +220,7 @@ mod unit {
     #[test]
     fn login_not_needed() {
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         // A successful login attempt on a TTI instrument is as follows:
@@ -580,7 +580,7 @@ mod unit {
     fn info() {
         let mut _interface = MockInterface::new();
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         // check_login()
@@ -640,7 +640,7 @@ mod unit {
     #[test]
     fn write_script() {
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         interface
@@ -708,7 +708,7 @@ mod unit {
     #[test]
     fn write_script_run() {
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         interface
@@ -783,7 +783,7 @@ mod unit {
     #[test]
     fn write_script_save() {
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         interface
@@ -858,7 +858,7 @@ mod unit {
     #[test]
     fn write_script_save_run() {
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
         interface
             .expect_write()
@@ -938,7 +938,7 @@ mod unit {
     #[test]
     fn flash_firmware() {
         let mut interface = MockInterface::new();
-        let mut auth = MockAuthenticate::new();
+        let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         interface
