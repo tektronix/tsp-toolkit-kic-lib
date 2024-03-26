@@ -4,7 +4,7 @@ description = "A library specifically enabling communication to the Keithley pro
 version = "0.15.0"
 authors = ["Keithley Instruments, LLC"]
 edition = "2021"
-repository = "https://github.com/TEK-Engineering/tsp-toolkit-kic-lib"
+repository = "https://github.com/tektronix/tsp-toolkit-kic-lib"
 
 [dependencies]
 bytes = "1"

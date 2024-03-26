@@ -38,8 +38,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Using read_password instead of prompt_password of rpassword crate (TSP-517)
 
 <!--Version Comparison Links-->
-[Unreleased]: https://github.com/TEK-Engineering/tsp-toolkit-kic-lib/compare/v0.15.0..HEAD
-[0.15.0]: https://github.com/TEK-Engineering/tsp-toolkit-kic-lib/releases/tag/v0.15.0
-[0.14.1]: https://github.com/TEK-Engineering/tsp-toolkit-kic-lib/releases/tag/v0.14.1
-[0.13.2]: https://github.com/TEK-Engineering/tsp-toolkit-kic-lib/releases/tag/v0.13.2
-[0.13.0]: https://github.com/TEK-Engineering/tsp-toolkit-kic-lib/releases/tag/v0.13.0
+[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-lib/compare/v0.15.0..HEAD
+[0.15.0]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.15.0
+[0.14.1]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.14.1
+[0.13.2]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.13.2
+[0.13.0]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.13.0

@@ -16,7 +16,7 @@ jobs:
     name: Style
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/tek-engineering/tsp-toolkit-build:latest
+      image: ghcr.io/tektronix/tsp-toolkit-build:latest
       credentials:
         username: ${{github.actor}}
         password: ${{secrets.GITHUB_TOKEN}}
@@ -32,7 +32,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/tek-engineering/tsp-toolkit-build:latest
+      image: ghcr.io/tektronix/tsp-toolkit-build:latest
       credentials:
         username: ${{github.actor}}
         password: ${{secrets.GITHUB_TOKEN}}
@@ -48,7 +48,7 @@ jobs:
     name: Generate CycloneDX
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/tek-engineering/tsp-toolkit-build:latest
+      image: ghcr.io/tektronix/tsp-toolkit-build:latest
       credentials:
         username: ${{github.actor}}
         password: ${{secrets.GITHUB_TOKEN}}
@@ -68,7 +68,7 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/tek-engineering/tsp-toolkit-build:latest
+      image: ghcr.io/tektronix/tsp-toolkit-build:latest
       credentials:
         username: ${{github.actor}}
         password: ${{secrets.GITHUB_TOKEN}}
@@ -158,7 +158,7 @@ jobs:
           - x86_64-unknown-linux-gnu
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/tek-engineering/tsp-toolkit-build:latest
+      image: ghcr.io/tektronix/tsp-toolkit-build:latest
       credentials:
         username: ${{github.actor}}
         password: ${{secrets.GITHUB_TOKEN}}
