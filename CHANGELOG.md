@@ -16,6 +16,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.15.1]
+
+### Changed
+- Nothing yet
+
 ## [0.15.0]
 
 ### Changed
@@ -38,7 +43,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Using read_password instead of prompt_password of rpassword crate (TSP-517)
 
 <!--Version Comparison Links-->
-[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-lib/compare/v0.15.0..HEAD
+[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-lib/compare/v0.15.1..HEAD
+[0.15.1]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.15.1
 [0.15.0]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.15.0
 [0.14.1]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.14.1
 [0.13.2]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.13.2
