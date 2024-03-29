@@ -202,7 +202,7 @@ jobs:
       - name: Get RC Version
         id: lasttag
         run: |
-          apt-get install -yqq jq
+          apt-get update && apt-get install -yqq jq
           COMMIT="${{github.sha}}"
           if ${{contains(github.head_ref, 'release/')}}; then
             V="${{github.head_ref}}"
