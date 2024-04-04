@@ -1,13 +1,5 @@
 #![feature(lint_reasons, rustdoc_missing_doc_code_examples)]
-#![deny(
-    clippy::undocumented_unsafe_blocks,
-    clippy::pedantic,
-    clippy::nursery,
-    clippy::arithmetic_side_effects
-)]
 #![feature(assert_matches)]
-//#![warn(missing_docs, rustdoc::all)]
-//#![allow(rustdoc::missing_doc_code_examples)]
 #![doc(html_logo_url = "../../../ki-comms_doc_icon.png")]
 
 //! The TSP Instrument crate defines the necessary components to enable communication
@@ -25,7 +17,6 @@ pub mod model;
 #[cfg(test)]
 pub(crate) mod test_util;
 
-//pub use connect::{AsyncToSync, Connect, ConnectAsync, ConnectionAddr, Disconnect};
 pub use error::InstrumentError;
 pub use instrument::firmware::Flash;
 pub use interface::{connection_addr::ConnectionAddr, usbtmc, Interface};
