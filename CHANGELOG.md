@@ -16,15 +16,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
-## [Unreleased]
-
-### Changed
-- Implemented Drop for AsyncStream (TSP-584)
-
 ## [0.15.1]
 
 ### Changed
-- Nothing yet
+- - Implemented Drop for AsyncStream (TSP-584)
 
 ## [0.15.0]
 
