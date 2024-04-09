@@ -19,7 +19,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [0.15.1]
 
 ### Changed
-- - Implemented Drop for AsyncStream (TSP-584)
+
+- Implemented Drop for AsyncStream (TSP-584)
+
+### Security
+- Update `h2` crate (GHSA-q6cp-qfwq-4gcv), which isn't anticipated to be
+  exploitable for this crate
 
 ## [0.15.0]
 
