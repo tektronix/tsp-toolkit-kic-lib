@@ -1,6 +1,5 @@
 use std::{
     io::{BufRead, Read, Write},
-    thread,
     time::Duration,
 };
 
@@ -69,10 +68,24 @@ impl Info for Instrument {
 impl Language for Instrument {
     fn get_language(&mut self) -> Result<CmdLanguage, InstrumentError> {
         self.write_all(b"*LANG?\n")?;
-        let mut lang: Vec<u8> = vec![0; 16];
-        thread::sleep(Duration::from_millis(500));
-        let _read = self.read(&mut lang)?;
-        String::from_utf8_lossy(&lang).to_string().as_str().parse()
+        for _i in 0..5 {
+            std::thread::sleep(Duration::from_millis(100));
+            let mut lang: Vec<u8> = vec![0; 256];
+            let _read = self.read(&mut lang)?;
+            let lang = std::str::from_utf8(lang.as_slice())
+                .unwrap_or("")
+                .trim_matches(char::from(0))
+                .trim();
+
+            if lang.contains("TSP") {
+                return Ok(CmdLanguage::Tsp);
+            } else if lang.contains("SCPI") {
+                return Ok(CmdLanguage::Scpi);
+            }
+        }
+        Err(InstrumentError::InformationRetrievalError {
+            details: ("could not read language of the instrument").to_string(),
+        })
     }
 
     fn change_language(&mut self, lang: CmdLanguage) -> Result<(), InstrumentError> {
@@ -172,7 +185,6 @@ impl NonBlock for Instrument {
 impl Drop for Instrument {
     fn drop(&mut self) {
         let _ = self.write_all(b"logout\n");
-        thread::sleep(Duration::from_millis(500));
     }
 }
 
