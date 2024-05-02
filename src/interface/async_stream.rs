@@ -57,19 +57,19 @@ impl AsyncStream {
     }
 
     fn drop_write_channel(&mut self) -> Result<()> {
-        match self.write_to.take() {
-            Some(send) => {
-                match send.send(AsyncMessage::End) {
-                    Ok(()) => {}
-                    Err(_) => {
-                        return Err(InstrumentError::IoError { source: (std::io::Error::new(
+        if let Some(send) = self.write_to.take() {
+            match send.send(AsyncMessage::End) {
+                Ok(()) => {}
+                Err(_) => {
+                    return Err(InstrumentError::IoError {
+                        source: (std::io::Error::new(
                             ErrorKind::NotConnected,
-                            "attempted to write asynchronously to socket, but it was not connected".to_string(),
-                        ))});
-                    }
+                            "attempted to write asynchronously to socket, but it was not connected"
+                                .to_string(),
+                        )),
+                    });
                 }
             }
-            None => {}
         }
         Ok(())
     }
