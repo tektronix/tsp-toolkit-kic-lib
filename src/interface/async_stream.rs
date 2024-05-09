@@ -13,7 +13,7 @@ use crate::{
     error::{InstrumentError, Result},
     instrument::{
         info::{get_info, InstrumentInfo},
-        Info,
+        Active, Info,
     },
 };
 
@@ -24,6 +24,7 @@ pub struct AsyncStream {
     join: Option<JoinHandle<Result<Arc<dyn Interface + Send + Sync>>>>,
     write_to: Option<Sender<AsyncMessage>>,
     read_from: Rc<Receiver<Vec<u8>>>,
+    stb_out: Rc<Receiver<StatusByte>>,
     buffer: Vec<u8>,
     nonblocking: bool,
     instrument_info: Option<InstrumentInfo>,
@@ -31,10 +32,32 @@ pub struct AsyncStream {
 
 enum AsyncMessage {
     Message(Vec<u8>),
+    Stb,
     End,
 }
 
 impl AsyncStream {
+    fn write_stb_request(&self) -> Result<()> {
+        self.write_to.as_ref().map_or_else(
+            || Ok(()),
+            |s| match s.send(AsyncMessage::Stb) {
+                Ok(()) => Ok(()),
+                Err(e) => Err(InstrumentError::Other(format!(
+                    "Unable to request STB: {e}"
+                ))),
+            },
+        )
+    }
+
+    fn read_stb(&self) -> Result<StatusByte> {
+        match self.stb_out.recv() {
+            Ok(s) => Ok(s),
+            Err(e) => Err(crate::InstrumentError::Other(format!(
+                "unable to get STB from device: {e}"
+            ))),
+        }
+    }
+
     fn join_thread(&mut self) -> Result<Arc<dyn Interface + Send + Sync>> {
         self.drop_write_channel()?;
         let socket = match self.join.take() {
@@ -83,6 +106,7 @@ impl TryFrom<Arc<dyn Interface + Send + Sync>> for AsyncStream {
     ) -> std::result::Result<Self, Self::Error> {
         let (write_to, read_into) = mpsc::channel();
         let (write_out, read_from) = mpsc::channel();
+        let (stb_from, stb_out) = mpsc::channel();
         let builder =
             std::thread::Builder::new().name("Instrument Communication Thread".to_string());
         let inst = Arc::get_mut(&mut socket).unwrap().info()?;
@@ -92,6 +116,7 @@ impl TryFrom<Arc<dyn Interface + Send + Sync>> for AsyncStream {
             Arc::get_mut(&mut socket).unwrap().set_nonblocking(true)?;
             let read_into: Receiver<AsyncMessage> = read_into;
             let write_out: Sender<Vec<u8>> = write_out;
+            let stb_from: Sender<StatusByte> = stb_from;
 
             'rw_loop: loop {
                 // see if the application has anything to send to the instrument.
@@ -143,6 +168,15 @@ impl TryFrom<Arc<dyn Interface + Send + Sync>> for AsyncStream {
                         break 'rw_loop;
                     }
 
+                    Ok(AsyncMessage::Stb) => {
+                        let socket = Arc::get_mut(&mut socket).unwrap();
+                        socket.write_all(b"*STB?\n")?;
+                        std::thread::sleep(Duration::from_millis(1));
+                        let mut stb_buf = vec![0u8; 4];
+                        let _ = socket.read(&mut stb_buf)?;
+                        let _ = stb_from.send(StatusByte::from(stb_buf.as_slice()));
+                    }
+
                     Err(mpsc::TryRecvError::Empty) => {}
                 }
                 let buf = &mut [0u8; 512];
@@ -166,6 +200,7 @@ impl TryFrom<Arc<dyn Interface + Send + Sync>> for AsyncStream {
             join: Some(join),
             write_to: Some(write_to),
             read_from: Rc::new(read_from),
+            stb_out: Rc::new(stb_out),
             buffer: Vec::new(),
             nonblocking: true,
             instrument_info: Some(inst),
@@ -275,4 +310,149 @@ impl TryFrom<AsyncStream> for Arc<dyn Interface + Send + Sync> {
     }
 }
 
+impl Active for AsyncStream {
+    fn get_status(&mut self) -> Result<StatusByte> {
+        self.write_stb_request()?;
+        self.read_stb()
+    }
+}
+
 impl Interface for AsyncStream {}
+
+const fn bit_check(byte: u8, bit: usize) -> bool {
+    let mask = 1 << bit;
+    ((byte & mask) >> bit) > 0
+}
+
+/// Represents that Status Byte of an instrument
+#[derive(Debug, Default, Clone, Copy)]
+pub struct StatusByte {
+    byte: u8,
+}
+
+impl StatusByte {
+    /// Create a status byte from a literal [`u8`]
+    ///
+    /// NOTE: The u8 here must NOT be the string representation of the status
+    /// byte number.
+    ///
+    /// # Panics
+    /// In debug builds, this will panic if the given byte has the unused bits
+    /// (1 and 6), meaning that the passed byte was likely an accidental string
+    /// representation of the status byte.
+    #[must_use]
+    pub const fn new(byte: u8) -> Self {
+        debug_assert!(!bit_check(byte, 1) && !bit_check(byte, 6));
+        Self { byte }
+    }
+
+    /// If `true`, an enabled event in the Measurement Event Register has
+    /// occurred
+    #[must_use]
+    pub const fn msb(&self) -> bool {
+        bit_check(self.byte, 0)
+    }
+
+    /// If `true`, an error or status message is present in the Error Queue
+    #[must_use]
+    pub const fn eav(&self) -> bool {
+        bit_check(self.byte, 2)
+    }
+
+    /// If `true`, an enabled even in the Questionable Status Register has
+    /// occurred
+    #[must_use]
+    pub const fn qsb(&self) -> bool {
+        bit_check(self.byte, 3)
+    }
+
+    /// If `true`, a response message is present in the Output Queue
+    #[must_use]
+    pub const fn mav(&self) -> bool {
+        bit_check(self.byte, 4)
+    }
+
+    /// If `true`, an enabled event in the Standard Event Status Register has
+    /// occurred
+    #[must_use]
+    pub const fn esb(&self) -> bool {
+        bit_check(self.byte, 5)
+    }
+    /// If `true`, an enabled event in the Operation Status Register has
+    /// occurred
+    #[must_use]
+    pub const fn osb(&self) -> bool {
+        bit_check(self.byte, 5)
+    }
+}
+
+impl From<&[u8]> for StatusByte {
+    fn from(value: &[u8]) -> Self {
+        Self::new(
+            String::from_utf8_lossy(value)
+                .trim()
+                .parse::<u8>()
+                .unwrap_or_default(),
+        )
+    }
+}
+
+#[cfg(test)]
+mod unit {
+    use super::{bit_check, StatusByte};
+
+    #[test]
+    fn bit_check_processes_bytes() {
+        let tests = [
+            (
+                0b0000_0000,
+                [false, false, false, false, false, false, false, false],
+            ),
+            (
+                0b0000_0001,
+                [true, false, false, false, false, false, false, false],
+            ),
+            (
+                0b0000_0010,
+                [false, true, false, false, false, false, false, false],
+            ),
+            (
+                0b0000_0100,
+                [false, false, true, false, false, false, false, false],
+            ),
+            (
+                0b0000_1000,
+                [false, false, false, true, false, false, false, false],
+            ),
+            (
+                0b0001_0000,
+                [false, false, false, false, true, false, false, false],
+            ),
+            (
+                0b0010_0000,
+                [false, false, false, false, false, true, false, false],
+            ),
+            (
+                0b0100_0000,
+                [false, false, false, false, false, false, true, false],
+            ),
+            (
+                0b1000_0000,
+                [false, false, false, false, false, false, false, true],
+            ),
+        ];
+
+        for (byte, expected) in tests {
+            for (i, e) in expected.iter().enumerate() {
+                assert_eq!(bit_check(byte, i), *e);
+            }
+        }
+    }
+
+    #[test]
+    fn status_byte_from_string() {
+        for a in (0x00..0xFF).filter(|&x| !(bit_check(x, 1) || bit_check(x, 6))) {
+            assert_eq!(StatusByte::from(format!("{a}\n").as_bytes()).byte, a);
+        }
+    }
+}

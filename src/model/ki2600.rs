@@ -6,14 +6,14 @@ use std::{
 use bytes::Buf;
 
 use crate::{
+    error::Result,
     instrument::{
         self,
         authenticate::Authentication,
         info::{get_info, InstrumentInfo},
-        language, Info, Login, Script,
+        language, Active, Info, Login, Script,
     },
-    interface::Interface,
-    interface::NonBlock,
+    interface::{async_stream::StatusByte, Interface, NonBlock},
     Flash, InstrumentError,
 };
 
@@ -48,6 +48,12 @@ impl Instrument {
 
 //Implement device_interface::Interface since it is a subset of instrument::Instrument trait.
 impl instrument::Instrument for Instrument {}
+
+impl Active for Instrument {
+    fn get_status(&mut self) -> Result<StatusByte> {
+        self.interface.get_status()
+    }
+}
 
 fn is_2600(model: impl AsRef<str>) -> bool {
     [
@@ -100,7 +106,7 @@ fn is_2600(model: impl AsRef<str>) -> bool {
 }
 
 impl Info for Instrument {
-    fn info(&mut self) -> crate::error::Result<InstrumentInfo> {
+    fn info(&mut self) -> Result<InstrumentInfo> {
         if let Some(inst_info) = self.info.clone() {
             return Ok(inst_info);
         }
@@ -112,7 +118,7 @@ impl Info for Instrument {
 impl language::Language for Instrument {}
 
 impl Login for Instrument {
-    fn check_login(&mut self) -> crate::error::Result<instrument::State> {
+    fn check_login(&mut self) -> Result<instrument::State> {
         self.write_all(b"print('unlocked')\n")?;
         for _i in 0..5 {
             std::thread::sleep(Duration::from_millis(100));
@@ -134,7 +140,7 @@ impl Login for Instrument {
         Ok(instrument::State::Needed)
     }
 
-    fn login(&mut self) -> crate::error::Result<()> {
+    fn login(&mut self) -> Result<()> {
         let mut inst_login_state = self.check_login()?;
         if instrument::State::NotNeeded == inst_login_state {
             return Ok(());
@@ -160,7 +166,7 @@ impl Login for Instrument {
 impl Script for Instrument {}
 
 impl Flash for Instrument {
-    fn flash_firmware(&mut self, image: &[u8], _: Option<u16>) -> crate::error::Result<()> {
+    fn flash_firmware(&mut self, image: &[u8], _: Option<u16>) -> Result<()> {
         let mut image = image.reader();
         self.write_all(b"localnode.prompts = 0\n")?;
         self.write_all(b"flash\n")?;
@@ -187,7 +193,7 @@ impl Write for Instrument {
 }
 
 impl NonBlock for Instrument {
-    fn set_nonblocking(&mut self, enable: bool) -> crate::error::Result<()> {
+    fn set_nonblocking(&mut self, enable: bool) -> Result<()> {
         self.interface.set_nonblocking(enable)
     }
 }
@@ -209,9 +215,8 @@ mod unit {
     use mockall::{mock, Sequence};
 
     use crate::{
-        instrument::{self, authenticate::Authentication, info::Info, Login, Script},
-        interface::NonBlock,
-        interface::{self},
+        instrument::{self, authenticate::Authentication, info::Info, Active, Login, Script},
+        interface::{self, async_stream::StatusByte, NonBlock},
         test_util, Flash, InstrumentError,
     };
 
@@ -1012,6 +1017,9 @@ mod unit {
             fn set_nonblocking(&mut self, enable: bool) -> crate::error::Result<()>;
         }
 
+        impl Active for Interface {
+            fn get_status(&mut self) -> crate::error::Result<StatusByte>;
+        }
         impl Info for Interface {}
     }
 

@@ -8,10 +8,9 @@ use crate::{
         self,
         authenticate::Authentication,
         info::{get_info, InstrumentInfo},
-        language, Info, Login, Script,
+        language, Active, Info, Login, Script,
     },
-    interface::Interface,
-    interface::NonBlock,
+    interface::{async_stream::StatusByte, Interface, NonBlock},
     Flash, InstrumentError,
 };
 use bytes::Buf;
@@ -51,6 +50,12 @@ fn is_versatest(model: impl AsRef<str>) -> bool {
 
 //Implement device_interface::Interface since it is a subset of instrument::Instrument trait.
 impl instrument::Instrument for Instrument {}
+
+impl Active for Instrument {
+    fn get_status(&mut self) -> crate::error::Result<StatusByte> {
+        self.interface.get_status()
+    }
+}
 
 impl Info for Instrument {
     fn info(&mut self) -> crate::error::Result<InstrumentInfo> {
@@ -211,8 +216,8 @@ mod unit {
     use mockall::{mock, Sequence};
 
     use crate::{
-        instrument::{self, authenticate::Authentication, info::Info, Login, Script},
-        interface::{self, NonBlock},
+        instrument::{self, authenticate::Authentication, info::Info, Active, Login, Script},
+        interface::{self, async_stream::StatusByte, NonBlock},
         test_util, Flash, InstrumentError,
     };
 
@@ -954,6 +959,9 @@ mod unit {
         }
         impl NonBlock for Interface {
             fn set_nonblocking(&mut self, enable: bool) -> crate::error::Result<()>;
+        }
+        impl Active for Interface {
+            fn get_status(&mut self) -> crate::error::Result<StatusByte>;
         }
         impl Info for Interface {}
     }
