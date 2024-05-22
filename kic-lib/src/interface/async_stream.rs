@@ -172,7 +172,7 @@ impl TryFrom<Arc<dyn Interface + Send + Sync>> for AsyncStream {
                         let socket = Arc::get_mut(&mut socket).unwrap();
                         socket.write_all(b"*STB?\n")?;
                         std::thread::sleep(Duration::from_millis(1));
-                        let mut stb_buf = vec![0u8; 4];
+                        let mut stb_buf = vec![0u8; 64];
                         let _ = socket.read(&mut stb_buf)?;
                         let _ = stb_from.send(StatusByte::from(stb_buf.as_slice()));
                     }

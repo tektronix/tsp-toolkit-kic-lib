@@ -1,41 +1,25 @@
-[package]
-name = "tsp-toolkit-kic-lib"
-description = "A library specifically enabling communication to the Keithley product-line of instruments"
-version = "0.15.1"
+[workspace]
+members = ["kic-lib", "lxi"]
+resolver = "2"
+
+[workspace.package]
 authors = ["Keithley Instruments, LLC"]
 edition = "2021"
 repository = "https://github.com/tektronix/tsp-toolkit-kic-lib"
 
-[dependencies]
-bytes = "1"
-phf = { version = "0.11", features = ["macros"] }
-rpassword = "7"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-thiserror = "1"
-tmc = { git = "https://github.com/esarver/rusb-usbtmc" }
-tracing = { version = "0.1", features = ["async-await"] }
-rusb = "0.9"
-chrono = "0.4"
-minidom = "0.15"
-reqwest = { version = "0.12", features = ["blocking"] }
+[workspace.dependencies]
+thiserror = "1.0"
+byteorder = "1.5"
 
-[dev-dependencies]
-anyhow = "1"
-bytes = "1"
-colored = "2"
-mockall = { version = "0.12", features = ["nightly"] }
-
-[lints.rust]
+[workspace.lints.rust]
 warnings = "deny"
 
-[lints.clippy]
+[workspace.lints.clippy]
 pedantic = { level = "deny", priority = -1 }
 nursery = { level = "deny", priority = -1 }
 undocumented_unsafe_blocks = "deny"
 arithmetic_side_effects = "deny"
 
-[lints.rustdoc]
+[workspace.lints.rustdoc]
 all = "warn"
 missing_doc_code_examples = "warn"
-

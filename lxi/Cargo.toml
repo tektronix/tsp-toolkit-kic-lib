@@ -1,0 +1,15 @@
+[package]
+name = "lxi"
+version = "0.1.0"
+description = "A library supporting the encoding and decoding of LXI codecs"
+keywords = ["LXI", "VXI-11", "HiSLIP", "Test and Measurment"]
+authors.workspace = true
+edition.workspace = true
+repository.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+byteorder.workspace = true
+
+[lints]
+workspace = true
