@@ -1,241 +1,25 @@
+pub mod opaque;
+pub use opaque::Opaque;
+
 use super::{Decode, Encode, EnumIdEncode, ProcDecode};
 use byteorder::{BigEndian, ReadBytesExt};
+
+pub mod error;
+
+pub mod encode;
+pub use encode::Encoder;
+
+pub mod decode;
+pub use decode::Decoder;
+
+pub mod client;
+pub use client::Client;
 
 pub struct PendingReply {
     pub xid: u32,
     pub program: u32,
     pub version: u32,
     pub procedure: u32,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Opaque {
-    data: Vec<u8>,
-}
-
-impl Encode for Opaque {
-    fn to_encoded_bytes(&self) -> Vec<u8> {
-        let mut message = Vec::new();
-        message.extend_from_slice(&self.data.len().to_be_bytes());
-        message.extend(self.data.iter());
-
-        //add fill bytes so the data size is a multiple of 4
-        message.resize(message.len().saturating_add(self.data.len() % 4), 0u8);
-
-        message
-    }
-}
-
-impl Opaque {
-    pub fn as_string(&self) -> String {
-        String::from_utf8_lossy(&self.data).to_string()
-    }
-
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.data
-    }
-}
-
-impl From<String> for Opaque {
-    fn from(value: String) -> Self {
-        Self {
-            data: value.as_bytes().to_vec(),
-        }
-    }
-}
-
-impl From<Vec<u8>> for Opaque {
-    fn from(value: Vec<u8>) -> Self {
-        Self { data: value }
-    }
-}
-impl From<Vec<u16>> for Opaque {
-    fn from(value: Vec<u16>) -> Self {
-        let mut data = Vec::new();
-        for x in value {
-            data.extend_from_slice(&x.to_be_bytes());
-        }
-
-        Self { data }
-    }
-}
-
-impl From<Vec<i16>> for Opaque {
-    fn from(value: Vec<i16>) -> Self {
-        let mut data = Vec::new();
-        for x in value {
-            data.extend_from_slice(&x.to_be_bytes());
-        }
-
-        Self { data }
-    }
-}
-
-impl From<Vec<u32>> for Opaque {
-    fn from(value: Vec<u32>) -> Self {
-        let mut data = Vec::new();
-        for x in value {
-            data.extend_from_slice(&x.to_be_bytes());
-        }
-
-        Self { data }
-    }
-}
-
-impl From<Vec<i32>> for Opaque {
-    fn from(value: Vec<i32>) -> Self {
-        let mut data = Vec::new();
-        for x in value {
-            data.extend_from_slice(&x.to_be_bytes());
-        }
-
-        Self { data }
-    }
-}
-
-impl From<Vec<u64>> for Opaque {
-    fn from(value: Vec<u64>) -> Self {
-        let mut data = Vec::new();
-        for x in value {
-            data.extend_from_slice(&x.to_be_bytes());
-        }
-
-        Self { data }
-    }
-}
-
-impl From<Vec<i64>> for Opaque {
-    fn from(value: Vec<i64>) -> Self {
-        let mut data = Vec::new();
-        for x in value {
-            data.extend_from_slice(&x.to_be_bytes());
-        }
-
-        Self { data }
-    }
-}
-
-impl From<Vec<usize>> for Opaque {
-    fn from(value: Vec<usize>) -> Self {
-        let mut data = Vec::new();
-        for x in value {
-            data.extend_from_slice(&x.to_be_bytes());
-        }
-
-        Self { data }
-    }
-}
-
-impl From<Vec<isize>> for Opaque {
-    fn from(value: Vec<isize>) -> Self {
-        let mut data = Vec::new();
-        for x in value {
-            data.extend_from_slice(&x.to_be_bytes());
-        }
-
-        Self { data }
-    }
-}
-
-impl Decode for Opaque {
-    fn decode<R: std::io::Read>(reader: &mut R) -> super::Result<Self> {
-        let len = reader.read_u32::<BigEndian>()?;
-
-        let mut data = Vec::new();
-
-        for _ in 0..len {
-            data.push(reader.read_u8()?);
-        }
-
-        Ok(Self { data })
-    }
-}
-
-pub struct Encoder<Data: Encode + ProcDecode + EnumIdEncode + PartialEq + Eq + Clone> {
-    xid: u32,
-    data_type: std::marker::PhantomData<Data>,
-    program: u32,
-    version: u32,
-}
-
-impl<Data: Encode + ProcDecode + EnumIdEncode + Clone + PartialEq + Eq> Encoder<Data> {
-    pub const fn new<
-        const PROGRAM: u32,
-        const VERSION: u32,
-        D: Encode + ProcDecode + EnumIdEncode + PartialEq + Eq + Clone,
-    >() -> Encoder<D> {
-        Encoder::<D> {
-            xid: 0,
-            data_type: std::marker::PhantomData::<D>,
-            program: PROGRAM,
-            version: VERSION,
-        }
-    }
-
-    pub fn call<W: std::io::Write>(
-        &mut self,
-        writer: &mut W,
-        data: &Data,
-    ) -> std::io::Result<PendingReply> {
-        self.xid = self.xid.wrapping_add(1);
-        let msg = Header::call(
-            self.program,
-            self.version,
-            self.xid,
-            data.clone(),
-            OpaqueAuth {
-                flavor: AuthFlavor::None,
-            },
-            OpaqueAuth {
-                flavor: AuthFlavor::None,
-            },
-        );
-        msg.encode(writer)?;
-        Ok(PendingReply {
-            xid: self.xid,
-            procedure: data.variant_id(),
-            program: self.program,
-            version: self.version,
-        })
-    }
-
-    pub fn reply<W: std::io::Write>(
-        &mut self,
-        writer: &mut W,
-        body: ReplyBody<Data>,
-    ) -> std::io::Result<()> {
-        self.xid = self.xid.wrapping_add(1);
-        let msg = Header::reply(self.xid, body);
-        msg.encode(writer)?;
-        Ok(())
-    }
-}
-
-pub struct Decoder<Data: Encode + ProcDecode + EnumIdEncode> {
-    pub data_type: std::marker::PhantomData<Data>,
-    pub program: u32,
-    pub version: u32,
-}
-
-impl<Data: Encode + ProcDecode + EnumIdEncode + Clone + PartialEq + Eq> Decoder<Data> {
-    pub const fn new<
-        const PROGRAM: u32,
-        const VERSION: u32,
-        D: Encode + ProcDecode + EnumIdEncode,
-    >() -> Decoder<D> {
-        Decoder::<D> {
-            data_type: std::marker::PhantomData::<D>,
-            program: PROGRAM,
-            version: VERSION,
-        }
-    }
-
-    pub fn proc_decode<R: std::io::Read>(
-        reader: &mut R,
-        procedure_id: u32,
-    ) -> super::Result<Header<Data>> {
-        Header::<Data>::proc_decode(reader, procedure_id)
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -431,7 +215,9 @@ pub struct AcceptedReplyBody<T: Encode + ProcDecode + EnumIdEncode + PartialEq +
     data: AcceptedReplyData<T>,
 }
 
-impl<T: Encode + ProcDecode + EnumIdEncode + PartialEq + Eq + Clone> Encode for AcceptedReplyBody<T> {
+impl<T: Encode + ProcDecode + EnumIdEncode + PartialEq + Eq + Clone> Encode
+    for AcceptedReplyBody<T>
+{
     fn to_encoded_bytes(&self) -> Vec<u8> {
         let mut message = Vec::new();
         message.extend_from_slice(&self.verifier.to_encoded_bytes());
@@ -442,7 +228,9 @@ impl<T: Encode + ProcDecode + EnumIdEncode + PartialEq + Eq + Clone> Encode for 
     }
 }
 
-impl<T: Encode + ProcDecode + EnumIdEncode + PartialEq + Eq + Clone> ProcDecode for AcceptedReplyBody<T> {
+impl<T: Encode + ProcDecode + EnumIdEncode + PartialEq + Eq + Clone> ProcDecode
+    for AcceptedReplyBody<T>
+{
     fn proc_decode<R: std::io::Read>(reader: &mut R, proc_id: u32) -> super::Result<Self> {
         let verifier: OpaqueAuth = OpaqueAuth::decode(reader)?;
         let data: AcceptedReplyData<T> = AcceptedReplyData::proc_decode(reader, proc_id)?;

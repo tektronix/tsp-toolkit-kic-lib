@@ -1,3 +1,5 @@
+use super::sunrpc;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("{0}")]
@@ -17,6 +19,13 @@ pub enum Error {
         #[from]
         source: std::num::TryFromIntError,
     },
+
+    #[error("{source}")]
+    RpcError {
+        #[from]
+        source: sunrpc::error::Error
+    }
 }
 
 pub type Result<T> = std::result::Result<T, self::Error>;
+

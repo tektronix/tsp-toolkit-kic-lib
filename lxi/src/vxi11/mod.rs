@@ -1,7 +1,6 @@
 mod error;
 pub(crate) mod sunrpc;
 mod vxi11_types;
-pub mod serde_sunrpc;
 
 pub use error::*;
 pub use vxi11_types::*;
@@ -10,6 +9,34 @@ const CORE_PROGRAM: u32 = 395_183; //VXI-11
                                    //const ABORT_PROGRAM: u32 = 395_184; //VXI-11
                                    //const INTERRUPT_PROGRAM: u32 = 395_185; //VXI-11
 const VERSION: u32 = 1;
+
+pub mod client {
+    use super::{sunrpc, Encode, EnumIdEncode, ProcDecode};
+
+    pub struct Client<Data>
+    where
+        Data: Encode + ProcDecode + EnumIdEncode + Clone + PartialEq + Eq,
+    {
+        sunrpc_client: sunrpc::Client<Data>,
+    }
+
+    impl<Data> Client<Data>
+    where
+        Data: Encode + ProcDecode + EnumIdEncode + Clone + PartialEq + Eq,
+    {
+        #[must_use]
+        pub fn new<
+            const PROGRAM: u32,
+            const VERSION: u32,
+            D: Encode + ProcDecode + EnumIdEncode + Clone + PartialEq + Eq,
+        >() -> Client<D> {
+            Client::<D> {
+                sunrpc_client: sunrpc::Client::<D>::new::<PROGRAM, VERSION, D>(),
+            }
+        }
+
+    }
+}
 
 pub struct CoreRequestEncoder {
     sunrpc_encoder: sunrpc::Encoder<CoreRequest>,
@@ -55,23 +82,22 @@ impl CoreRequestEncoder {
     }
 }
 
-pub struct CoreRequestDecoder{
+pub struct CoreRequestDecoder {
     pub sunrpc_decoder: sunrpc::Decoder<CoreRequest>,
 }
 
 impl Default for CoreRequestDecoder {
     fn default() -> Self {
-        Self { sunrpc_decoder: sunrpc::Decoder::<CoreRequest>::new::<CORE_PROGRAM, VERSION, CoreRequest>() }
+        Self {
+            sunrpc_decoder: sunrpc::Decoder::<CoreRequest>::new::<CORE_PROGRAM, VERSION, CoreRequest>(
+            ),
+        }
     }
 }
 
-pub struct CoreResponseDecoder {
+pub struct CoreResponseDecoder {}
 
-}
-
-impl CoreResponseDecoder {
-
-}
+impl CoreResponseDecoder {}
 
 pub trait EnumIdEncode {
     /// Get the descriminant of `self`. This function works for all enum-types
