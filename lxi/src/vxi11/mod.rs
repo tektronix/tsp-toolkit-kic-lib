@@ -1,32 +1,44 @@
-pub(crate) mod sunrpc;
 mod error;
+pub(crate) mod sunrpc;
 mod vxi11_types;
+pub mod serde_sunrpc;
 
-pub use vxi11_types::*;
 pub use error::*;
+pub use vxi11_types::*;
 
 const CORE_PROGRAM: u32 = 395_183; //VXI-11
-const ABORT_PROGRAM: u32 = 395_184; //VXI-11
-const INTERRUPT_PROGRAM: u32 = 395_185; //VXI-11
+                                   //const ABORT_PROGRAM: u32 = 395_184; //VXI-11
+                                   //const INTERRUPT_PROGRAM: u32 = 395_185; //VXI-11
 const VERSION: u32 = 1;
 
-pub struct CoreEncoder {
+pub struct CoreRequestEncoder {
     sunrpc_encoder: sunrpc::Encoder<CoreRequest>,
 }
 
-impl CoreEncoder {
-    #[must_use]
-    pub const fn new() -> CoreEncoder {
-        CoreEncoder {
-            sunrpc_encoder: sunrpc::Encoder::<CoreRequest>::new::<CORE_PROGRAM, VERSION, D>(),
+impl Default for CoreRequestEncoder {
+    fn default() -> Self {
+        Self {
+            sunrpc_encoder: sunrpc::Encoder::<CoreRequest>::new::<CORE_PROGRAM, VERSION, CoreRequest>(
+            ),
         }
+    }
+}
+
+impl CoreRequestEncoder {
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Write a VXI-11 Call to the given writer.
     ///
     /// # Errors
     /// Errors are those returned by [`std::io::Write`] calls.
-    pub fn call<W: std::io::Write>(&mut self, writer: &mut W, data: Data) -> std::io::Result<sunrpc::PendingReply> {
+    pub fn call<W: std::io::Write>(
+        &mut self,
+        writer: &mut W,
+        data: &CoreRequest,
+    ) -> std::io::Result<sunrpc::PendingReply> {
         self.sunrpc_encoder.call(writer, data)
     }
 
@@ -34,19 +46,32 @@ impl CoreEncoder {
     ///
     /// # Errors
     /// Errors are those returned by [`std::io::Write`] calls.
-    pub fn reply<W: std::io::Write>(&mut self, writer: &mut W, data: sunrpc::ReplyBody<Data>) -> std::io::Result<()> {
+    pub fn reply<W: std::io::Write>(
+        &mut self,
+        writer: &mut W,
+        data: sunrpc::ReplyBody<CoreRequest>,
+    ) -> std::io::Result<()> {
         self.sunrpc_encoder.reply(writer, data)
     }
 }
 
-pub struct CoreDecoder;
+pub struct CoreRequestDecoder{
+    pub sunrpc_decoder: sunrpc::Decoder<CoreRequest>,
+}
 
-impl CoreDecoder {
-    pub fn decode<R: std::io::Read>() -> self::error::Result<()> {
-        Ok(())
+impl Default for CoreRequestDecoder {
+    fn default() -> Self {
+        Self { sunrpc_decoder: sunrpc::Decoder::<CoreRequest>::new::<CORE_PROGRAM, VERSION, CoreRequest>() }
     }
 }
 
+pub struct CoreResponseDecoder {
+
+}
+
+impl CoreResponseDecoder {
+
+}
 
 pub trait EnumIdEncode {
     /// Get the descriminant of `self`. This function works for all enum-types
@@ -97,10 +122,23 @@ pub trait Encode {
     fn to_encoded_bytes(&self) -> Vec<u8>;
 }
 
-pub trait Decode
-where Self: Sized,
+pub trait ProcDecode
+where
+    Self: Sized,
 {
-    /// Decode `self` from a [`std::io::Read`]er.
+    /// Decode `Self` from a [`std::io::Read`]er, where `Self` is a Procedure
+    ///
+    /// # Errors
+    /// May return any errors that [`std::io::Read::read`] may produce as well
+    /// as any conversion errors.
+    fn proc_decode<R: std::io::Read>(reader: &mut R, procedure_id: u32) -> Result<Self>;
+}
+
+pub trait Decode
+where
+    Self: Sized,
+{
+    /// Decode `Self` from a [`std::io::Read`]er.
     ///
     /// # Errors
     /// May return any errors that [`std::io::Read::read`] may produce as well
