@@ -11,11 +11,12 @@ use tmc::InstrumentHandle;
 
 use crate::{
     error::Result,
-    instrument::{info::InstrumentInfo, Info},
-    interface,
-    interface::NonBlock,
+    instrument::{info::InstrumentInfo, Active, Info},
+    interface::{self, NonBlock},
     InstrumentError,
 };
+
+use super::async_stream::StatusByte;
 
 const KEITHLEY_VID: u16 = 0x05e6;
 
@@ -181,6 +182,15 @@ impl Read for Stream {
             msg.take(buf.len() as u64).read(buf)
         } else {
             Ok(0)
+        }
+    }
+}
+
+impl Active for Stream {
+    fn get_status(&mut self) -> Result<interface::async_stream::StatusByte> {
+        match self.handle.read_stb(None) {
+            Ok(mav) if mav => Ok(StatusByte::new(0b0001_0000)),
+            _ => Ok(StatusByte::new(0b0000_0000)),
         }
     }
 }

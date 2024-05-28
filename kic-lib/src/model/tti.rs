@@ -3,20 +3,19 @@ use std::{
     time::Duration,
 };
 
+use bytes::Buf;
+use language::{CmdLanguage, Language};
+
 use crate::{
     instrument::{
         self,
         authenticate::Authentication,
         info::{get_info, InstrumentInfo},
-        language, Info, Login, Script,
+        language, Active, Info, Login, Script,
     },
-    interface::Interface,
-    interface::NonBlock,
+    interface::{async_stream::StatusByte, Interface, NonBlock},
     Flash, InstrumentError,
 };
-use bytes::Buf;
-use language::Language;
-use serde::{Deserialize, Serialize};
 
 pub struct Instrument {
     info: Option<InstrumentInfo>,
@@ -27,7 +26,7 @@ pub struct Instrument {
 impl Instrument {
     #[must_use]
     pub fn is(info: &InstrumentInfo) -> bool {
-        info.model.as_ref().map_or(false, is_versatest)
+        info.model.as_ref().map_or(false, is_tti)
     }
 
     #[must_use]
@@ -45,12 +44,21 @@ impl Instrument {
     }
 }
 
-fn is_versatest(model: impl AsRef<str>) -> bool {
-    ["VERSATEST-600", "TSPop", "TSP"].contains(&model.as_ref())
+fn is_tti(model: impl AsRef<str>) -> bool {
+    [
+        "2450", "2470", "DMM7510", "2460", "2461", "2461-SYS", "DMM7512", "DMM6500", "DAQ6510",
+    ]
+    .contains(&model.as_ref())
 }
 
 //Implement device_interface::Interface since it is a subset of instrument::Instrument trait.
 impl instrument::Instrument for Instrument {}
+
+impl Active for Instrument {
+    fn get_status(&mut self) -> crate::error::Result<StatusByte> {
+        self.interface.get_status()
+    }
+}
 
 impl Info for Instrument {
     fn info(&mut self) -> crate::error::Result<InstrumentInfo> {
@@ -62,28 +70,58 @@ impl Info for Instrument {
     }
 }
 
-impl Language for Instrument {}
+impl Language for Instrument {
+    fn get_language(&mut self) -> Result<CmdLanguage, InstrumentError> {
+        self.write_all(b"*LANG?\n")?;
+        for _i in 0..5 {
+            std::thread::sleep(Duration::from_millis(100));
+            let mut lang: Vec<u8> = vec![0; 256];
+            let _read = self.read(&mut lang)?;
+            let lang = std::str::from_utf8(lang.as_slice())
+                .unwrap_or("")
+                .trim_matches(char::from(0))
+                .trim();
+
+            if lang.contains("TSP") {
+                return Ok(CmdLanguage::Tsp);
+            } else if lang.contains("SCPI") {
+                return Ok(CmdLanguage::Scpi);
+            }
+        }
+        Err(InstrumentError::InformationRetrievalError {
+            details: ("could not read language of the instrument").to_string(),
+        })
+    }
+
+    fn change_language(&mut self, lang: CmdLanguage) -> Result<(), InstrumentError> {
+        self.write_all(format!("*LANG {lang}\n").as_bytes())?;
+        Ok(())
+    }
+}
 
 impl Login for Instrument {
     fn check_login(&mut self) -> crate::error::Result<instrument::State> {
-        self.write_all(b"print('unlocked')\n")?;
+        self.write_all(b"*TST?\n")?;
         for _i in 0..5 {
             std::thread::sleep(Duration::from_millis(100));
             let mut resp: Vec<u8> = vec![0; 256];
-            let _read = self.read(&mut resp)?;
+            let _read_bytes = self.read(&mut resp)?;
             let resp = std::str::from_utf8(resp.as_slice())
                 .unwrap_or("")
                 .trim_matches(char::from(0))
                 .trim();
 
-            if resp.contains("unlocked") {
+            if resp.contains("SUCCESS: Logged in") || resp.contains('0') {
                 return Ok(instrument::State::NotNeeded);
             }
-            if resp.contains("Port in use") {
-                return Ok(instrument::State::LogoutNeeded);
+
+            if resp.contains("FAILURE") {
+                if resp.contains("LOGOUT") {
+                    return Ok(instrument::State::LogoutNeeded);
+                }
+                return Ok(instrument::State::Needed);
             }
         }
-
         Ok(instrument::State::Needed)
     }
 
@@ -97,7 +135,7 @@ impl Login for Instrument {
 
         println!("Instrument might be locked.\nEnter the password to unlock the instrument:");
         let password = self.auth.read_password()?;
-        self.write_all(format!("password {password}\n").as_bytes())?;
+        self.write_all(format!("login {password}\n").as_bytes())?;
 
         inst_login_state = self.check_login()?;
         if instrument::State::NotNeeded == inst_login_state {
@@ -111,6 +149,21 @@ impl Login for Instrument {
 }
 
 impl Script for Instrument {}
+
+impl Flash for Instrument {
+    fn flash_firmware(&mut self, image: &[u8], _: Option<u16>) -> crate::error::Result<()> {
+        let mut image = image.reader();
+
+        self.write_all(b"localnode.prompts=localnode.DISABLE\n")?;
+        self.write_all(b"if ki.upgrade ~= nil and ki.upgrade.noacklater ~= nil then ki.upgrade.noacklater() end\n")?;
+        self.write_all(b"prevflash\n")?;
+
+        self.write_all(image.fill_buf().unwrap())?;
+
+        self.write_all(b"endflash\n")?;
+        Ok(())
+    }
+}
 
 impl Read for Instrument {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
@@ -128,75 +181,15 @@ impl Write for Instrument {
     }
 }
 
-/// The information necessary to flash an instrument.
-#[derive(Serialize, Deserialize, Debug)]
-struct FirmwareInfo {
-    /// For VersaTest only: `true` - the firmware is for a module; `false`: the firmware is for the mainframe
-    #[serde(rename = "IsModule")]
-    is_module: bool,
-
-    /// For VersaTest only: The slot number of the module to update.
-    #[serde(rename = "Slot")]
-    slot: u8,
-}
-pub const VERSATEST_FLASH_UTIL_STR: &[u8] = include_bytes!("resources/flashUtil.tsp");
-impl Flash for Instrument {
-    fn flash_firmware(
-        &mut self,
-        image: &[u8],
-        firmware_info: Option<u16>,
-    ) -> crate::error::Result<()> {
-        let mut is_module = false;
-        let slot_number: u16 = firmware_info.unwrap_or(0);
-        if slot_number > 0 {
-            is_module = true;
-        }
-
-        //TODO This is temporary: Only use while not defined in FW
-        if is_module {
-            self.write_script(b"FlashUtil", VERSATEST_FLASH_UTIL_STR, false, true)?;
-        }
-        //.update {"FileName": "C:/Users/esarver1/Downloads/trebuchet-mainframe-sd-225642.x", "IsModule": false, "Slot": 1}
-        //.update {"FileName": "C:/Users/esarver1/Downloads/kingarthur-module-225665.x", "IsModule": true, "Slot": 1}
-
-        self.write_all(b"localnode.prompts=0\n")?;
-        let mut image = image.reader();
-        self.write_all(b"flash\n")?;
-
-        let _ = self.write_all(image.fill_buf().unwrap());
-        self.write_all(b"endflash\n")?;
-
-        if is_module {
-            //TODO This is temporary: Only use while not defined in FW
-            self.write_all(b"FlashUtil()\n")?;
-            self.write_all(format!("updateSlot({slot_number})\n").as_bytes())?;
-
-            let flash_util_global_functions = [b"flashupdate", b"flashverify", b"flashencode"];
-
-            for func in flash_util_global_functions {
-                //wait before deleting functions
-                std::thread::sleep(Duration::from_millis(100));
-                let _ =
-                    self.write_all(format!("{} = nil\n", String::from_utf8_lossy(func)).as_bytes());
-            }
-
-            let script_name = "FlashUtil";
-            self.write_all(format!("{script_name} = nil\n").as_bytes())?;
-            //TODO use this when the FW team has implemented it:
-            // self.write(format!("slot[{slot_number}].firmware.update()\n").as_bytes());
-        } else {
-            //Update Mainframe
-            self.write_all(b"firmware.update()\n")?;
-        }
-        //self.write("localnode.prompts=1\n".to_string().as_bytes());
-
-        Ok(())
-    }
-}
-
 impl NonBlock for Instrument {
     fn set_nonblocking(&mut self, enable: bool) -> crate::error::Result<()> {
         self.interface.set_nonblocking(enable)
+    }
+}
+
+impl Drop for Instrument {
+    fn drop(&mut self) {
+        let _ = self.write_all(b"logout\n");
     }
 }
 
@@ -211,8 +204,10 @@ mod unit {
     use mockall::{mock, Sequence};
 
     use crate::{
-        instrument::{self, authenticate::Authentication, info::Info, Login, Script},
-        interface::{self, NonBlock},
+        instrument::{
+            self, authenticate::Authentication, info::Info, Active, Language, Login, Script,
+        },
+        interface::{self, async_stream::StatusByte, NonBlock},
         test_util, Flash, InstrumentError,
     };
 
@@ -223,18 +218,11 @@ mod unit {
         let mut interface = MockInterface::new();
         let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
-
-        // A successful login attempt on a TTI instrument is as follows:
-        // 1. Instrument connects to interface
-        // 2. Instrument sends "*STB?\n"
-        // 3. Instrument reads from interface and receives status byte
-        // 4. Instrument returns `instrument::State::NotNeeded`
-
         interface
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .withf(|buf: &[u8]| buf == b"*TST?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -243,7 +231,7 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 2)
             .return_once(|buf: &mut [u8]| {
-                let msg = b"unlocked\n";
+                let msg = b"0\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
                         .reader()
@@ -258,7 +246,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .withf(|buf: &[u8]| buf == b"*TST?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -267,7 +255,7 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 2)
             .return_once(|buf: &mut [u8]| {
-                let msg = b"unlocked\n";
+                let msg = b"0\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
                         .reader()
@@ -280,8 +268,14 @@ mod unit {
         interface
             .expect_write()
             .times(..)
+            .withf(|buf: &[u8]| buf == b"logout\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
+
         let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
         assert_matches!(instrument.check_login(), Ok(instrument::State::NotNeeded));
@@ -290,7 +284,7 @@ mod unit {
     }
 
     #[test]
-    #[allow(clippy::too_many_lines)] //Allow for now.
+    #[allow(clippy::too_many_lines)] //Allow for now
     fn login_success() {
         let mut interface = MockInterface::new();
         let mut auth = MockAuthenticate::new();
@@ -300,15 +294,15 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .withf(|buf: &[u8]| buf == b"*TST?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
             .expect_read()
-            .times(5)
+            .times(1)
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 8)
-            .returning(|buf: &mut [u8]| {
+            .return_once(|buf: &mut [u8]| {
                 let msg = b"FAILURE\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
@@ -325,15 +319,15 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .withf(|buf: &[u8]| buf == b"*TST?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
             .expect_read()
-            .times(5)
+            .times(1)
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 8)
-            .returning(|buf: &mut [u8]| {
+            .return_once(|buf: &mut [u8]| {
                 let msg = b"FAILURE\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
@@ -355,7 +349,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"password secret_token\n")
+            .withf(|buf: &[u8]| buf == b"login secret_token\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         // login() { second check_login() }
@@ -363,7 +357,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .withf(|buf: &[u8]| buf == b"*TST?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -372,7 +366,7 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 8)
             .return_once(|buf: &mut [u8]| {
-                let msg = b"unlocked\n";
+                let msg = b"0\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
                         .reader()
@@ -388,7 +382,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .withf(|buf: &[u8]| buf == b"*TST?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -397,7 +391,7 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 8)
             .return_once(|buf: &mut [u8]| {
-                let msg = b"unlocked\n";
+                let msg = b"0\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
                         .reader()
@@ -407,6 +401,13 @@ mod unit {
                 }
                 Ok(msg.len())
             });
+
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"logout\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
         interface
             .expect_write()
             .times(..)
@@ -416,9 +417,7 @@ mod unit {
         let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
         assert_matches!(instrument.check_login(), Ok(instrument::State::Needed));
-
         assert_matches!(instrument.login(), Ok(()));
-
         assert_matches!(instrument.check_login(), Ok(instrument::State::NotNeeded));
     }
 
@@ -433,15 +432,15 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .withf(|buf: &[u8]| buf == b"*TST?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
             .expect_read()
-            .times(5)
+            .times(1)
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 8)
-            .returning(|buf: &mut [u8]| {
+            .return_once(|buf: &mut [u8]| {
                 let msg = b"FAILURE\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
@@ -458,15 +457,15 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .withf(|buf: &[u8]| buf == b"*TST?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
             .expect_read()
-            .times(5)
+            .times(1)
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 8)
-            .returning(|buf: &mut [u8]| {
+            .return_once(|buf: &mut [u8]| {
                 let msg = b"FAILURE\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
@@ -487,7 +486,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"password secret_token\n")
+            .withf(|buf: &[u8]| buf == b"login secret_token\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         // login() { second check_login() }
@@ -495,15 +494,15 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .withf(|buf: &[u8]| buf == b"*TST?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
             .expect_read()
-            .times(5)
+            .times(1)
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 8)
-            .returning(|buf: &mut [u8]| {
+            .return_once(|buf: &mut [u8]| {
                 let msg = b"FAILURE\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
@@ -520,15 +519,15 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"print('unlocked')\n")
+            .withf(|buf: &[u8]| buf == b"*TST?\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
             .expect_read()
-            .times(5)
+            .times(1)
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 8)
-            .returning(|buf: &mut [u8]| {
+            .return_once(|buf: &mut [u8]| {
                 let msg = b"FAILURE\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
@@ -542,9 +541,14 @@ mod unit {
         interface
             .expect_write()
             .times(..)
-            .withf(|buf: &[u8]| buf == b"abort\n")
+            .withf(|buf: &[u8]| buf == b"logout\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"abort\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
         let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
         assert_matches!(instrument.check_login(), Ok(instrument::State::Needed));
@@ -560,6 +564,12 @@ mod unit {
         let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
+        interface
+            .expect_set_nonblocking()
+            .times(..)
+            .returning(|_| Ok(()));
+
+        // check_login()
         interface
             .expect_write()
             .times(1)
@@ -583,12 +593,18 @@ mod unit {
                 }
                 Ok(msg.len())
             });
+
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"logout\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
         interface
             .expect_write()
             .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
-
         let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
         let info = instrument
@@ -607,59 +623,179 @@ mod unit {
     }
 
     #[test]
-    fn write_script() {
+    fn get_language_tsp() {
         let mut interface = MockInterface::new();
         let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
         interface
             .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"*LANG?\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf.len() >= 4)
+            .return_once(|buf: &mut [u8]| {
+                let msg = b"TSP\n";
+                if buf.len() >= msg.len() {
+                    let bytes = msg[..]
+                        .reader()
+                        .read(buf)
+                        .expect("MockInterface should write to buffer");
+                    assert_eq!(bytes, msg.len());
+                }
+                Ok(msg.len())
+            });
+
+        interface
+            .expect_write()
             .times(..)
-            .withf(|buf: &[u8]| buf == b"_orig_prompts = localnode.prompts localnode.prompts = 0\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(..)
-            .withf(|buf: &[u8]| buf == b"localnode.prompts = _orig_prompts _orig_prompts = nil\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        //Accept any number of flushes
-        interface.expect_flush().times(..).returning(|| Ok(()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"test_script=nil\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"loadscript test_script\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(move |buf: &[u8]| buf == b"line1\nline2\nline3"[..].reader().fill_buf().unwrap())
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"\nendscript\n")
+            .withf(|buf: &[u8]| buf == b"logout\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
         interface
             .expect_write()
             .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
+        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
+        assert_eq!(
+            instrument.get_language().unwrap(),
+            instrument::CmdLanguage::Tsp
+        );
+    }
+
+    #[test]
+    fn get_language_scpi() {
+        let mut interface = MockInterface::new();
+        let auth = MockAuthenticate::new();
+        let mut seq = Sequence::new();
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"*LANG?\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf.len() >= 5)
+            .return_once(|buf: &mut [u8]| {
+                let msg = b"SCPI\n";
+                if buf.len() >= msg.len() {
+                    let bytes = msg[..]
+                        .reader()
+                        .read(buf)
+                        .expect("MockInterface should write to buffer");
+                    assert_eq!(bytes, msg.len());
+                }
+                Ok(msg.len())
+            });
+
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"logout\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"abort\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
+
+        assert_eq!(
+            instrument.get_language().unwrap(),
+            instrument::CmdLanguage::Scpi
+        );
+    }
+
+    #[test]
+    fn change_language() {
+        let mut interface = MockInterface::new();
+        let auth = MockAuthenticate::new();
+        let mut seq = Sequence::new();
+
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"*LANG TSP\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"*LANG SCPI\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"logout\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"abort\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
+
+        assert!(instrument
+            .change_language(instrument::CmdLanguage::Tsp)
+            .is_ok());
+
+        assert!(instrument
+            .change_language(instrument::CmdLanguage::Scpi)
+            .is_ok());
+    }
+
+    #[test]
+    fn write_script() {
+        let optional_writes: Vec<Vec<u8>> = vec![
+            (*b"logout\n").into(),
+            (*b"abort\n").into(),
+            (*b"_orig_prompts = localnode.prompts localnode.prompts = 0\n").into(),
+            (*b"localnode.prompts = _orig_prompts _orig_prompts = nil\n").into(),
+        ];
+        let expected: Vec<Vec<u8>> = vec![
+            (*b"test_script=nil\n").into(),
+            (*b"loadscript test_script\n").into(),
+            (*b"line1\nline2\nline3").into(),
+            (*b"\nendscript\n").into(),
+        ];
+        let mut interface = MockInterface::new();
+        let auth = MockAuthenticate::new();
+        let mut seq = Sequence::new();
+
+        //Accept any number of flushes
+        interface.expect_flush().times(..).returning(|| Ok(()));
+
+        for o in optional_writes {
+            interface
+                .expect_write()
+                .times(..)
+                .withf(move |buf: &[u8]| buf == o)
+                .returning(|buf: &[u8]| Ok(buf.len()));
+        }
+
+        for e in expected {
+            interface
+                .expect_write()
+                .times(1)
+                .in_sequence(&mut seq)
+                .withf(move |buf: &[u8]| buf == e)
+                .returning(|buf: &[u8]| Ok(buf.len()));
+        }
         let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
         instrument
@@ -669,65 +805,42 @@ mod unit {
 
     #[test]
     fn write_script_run() {
+        let optional_writes: Vec<Vec<u8>> = vec![
+            (*b"logout\n").into(),
+            (*b"abort\n").into(),
+            (*b"_orig_prompts = localnode.prompts localnode.prompts = 0\n").into(),
+            (*b"localnode.prompts = _orig_prompts _orig_prompts = nil\n").into(),
+        ];
+        let expected: Vec<Vec<u8>> = vec![
+            (*b"test_script=nil\n").into(),
+            (*b"loadscript test_script\n").into(),
+            (*b"line1\nline2\nline3").into(),
+            (*b"\nendscript\n").into(),
+            (*b"test_script.run()\n").into(),
+        ];
         let mut interface = MockInterface::new();
         let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
-        interface
-            .expect_write()
-            .times(..)
-            .withf(|buf: &[u8]| buf == b"_orig_prompts = localnode.prompts localnode.prompts = 0\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(..)
-            .withf(|buf: &[u8]| buf == b"localnode.prompts = _orig_prompts _orig_prompts = nil\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
         //Accept any number of flushes
         interface.expect_flush().times(..).returning(|| Ok(()));
 
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"test_script=nil\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
+        for o in optional_writes {
+            interface
+                .expect_write()
+                .times(..)
+                .withf(move |buf: &[u8]| buf == o)
+                .returning(|buf: &[u8]| Ok(buf.len()));
+        }
 
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"loadscript test_script\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(move |buf: &[u8]| buf == b"line1\nline2\nline3"[..].reader().fill_buf().unwrap())
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"\nendscript\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"test_script.run()\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-        interface
-            .expect_write()
-            .times(..)
-            .withf(|buf: &[u8]| buf == b"abort\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
+        for e in expected {
+            interface
+                .expect_write()
+                .times(1)
+                .in_sequence(&mut seq)
+                .withf(move |buf: &[u8]| buf == e)
+                .returning(|buf: &[u8]| Ok(buf.len()));
+        }
         let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
         instrument
@@ -737,64 +850,42 @@ mod unit {
 
     #[test]
     fn write_script_save() {
+        let optional_writes: Vec<Vec<u8>> = vec![
+            (*b"logout\n").into(),
+            (*b"abort\n").into(),
+            (*b"_orig_prompts = localnode.prompts localnode.prompts = 0\n").into(),
+            (*b"localnode.prompts = _orig_prompts _orig_prompts = nil\n").into(),
+        ];
+        let expected: Vec<Vec<u8>> = vec![
+            (*b"test_script=nil\n").into(),
+            (*b"loadscript test_script\n").into(),
+            (*b"line1\nline2\nline3").into(),
+            (*b"\nendscript\n").into(),
+            (*b"test_script.save()\n").into(),
+        ];
         let mut interface = MockInterface::new();
         let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
-        interface
-            .expect_write()
-            .times(..)
-            .withf(|buf: &[u8]| buf == b"_orig_prompts = localnode.prompts localnode.prompts = 0\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(..)
-            .withf(|buf: &[u8]| buf == b"localnode.prompts = _orig_prompts _orig_prompts = nil\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
         //Accept any number of flushes
         interface.expect_flush().times(..).returning(|| Ok(()));
 
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"test_script=nil\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
+        for o in optional_writes {
+            interface
+                .expect_write()
+                .times(..)
+                .withf(move |buf: &[u8]| buf == o)
+                .returning(|buf: &[u8]| Ok(buf.len()));
+        }
 
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"loadscript test_script\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(move |buf: &[u8]| buf == b"line1\nline2\nline3"[..].reader().fill_buf().unwrap())
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"\nendscript\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"test_script.save()\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-        interface
-            .expect_write()
-            .times(..)
-            .withf(|buf: &[u8]| buf == b"abort\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
+        for e in expected {
+            interface
+                .expect_write()
+                .times(1)
+                .in_sequence(&mut seq)
+                .withf(move |buf: &[u8]| buf == e)
+                .returning(|buf: &[u8]| Ok(buf.len()));
+        }
 
         let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
@@ -805,72 +896,44 @@ mod unit {
 
     #[test]
     fn write_script_save_run() {
+        let optional_writes: Vec<Vec<u8>> = vec![
+            (*b"logout\n").into(),
+            (*b"abort\n").into(),
+            (*b"_orig_prompts = localnode.prompts localnode.prompts = 0\n").into(),
+            (*b"localnode.prompts = _orig_prompts _orig_prompts = nil\n").into(),
+        ];
+        let expected: Vec<Vec<u8>> = vec![
+            (*b"test_script=nil\n").into(),
+            (*b"loadscript test_script\n").into(),
+            (*b"line1\nline2\nline3").into(),
+            (*b"\nendscript\n").into(),
+            (*b"test_script.save()\n").into(),
+            (*b"test_script.run()\n").into(),
+        ];
         let mut interface = MockInterface::new();
         let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
-        interface
-            .expect_write()
-            .times(..)
-            .withf(|buf: &[u8]| buf == b"_orig_prompts = localnode.prompts localnode.prompts = 0\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(..)
-            .withf(|buf: &[u8]| buf == b"localnode.prompts = _orig_prompts _orig_prompts = nil\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
         //Accept any number of flushes
         interface.expect_flush().times(..).returning(|| Ok(()));
 
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"test_script=nil\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
+        for o in optional_writes {
+            interface
+                .expect_write()
+                .times(..)
+                .withf(move |buf: &[u8]| buf == o)
+                .returning(|buf: &[u8]| Ok(buf.len()));
+        }
 
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"loadscript test_script\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
+        for e in expected {
+            interface
+                .expect_write()
+                .times(1)
+                .in_sequence(&mut seq)
+                .withf(move |buf: &[u8]| buf == e)
+                .returning(|buf: &[u8]| Ok(buf.len()));
+        }
 
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(move |buf: &[u8]| buf == b"line1\nline2\nline3"[..].reader().fill_buf().unwrap())
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"\nendscript\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"test_script.save()\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"test_script.run()\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-
-        interface
-            .expect_write()
-            .times(..)
-            .withf(|buf: &[u8]| buf == b"abort\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
         let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
         instrument
@@ -883,19 +946,24 @@ mod unit {
         let mut interface = MockInterface::new();
         let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
-
         interface
             .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"localnode.prompts=0\n")
+            .times(..)
+            .withf(|buf: &[u8]| String::from_utf8_lossy(buf).contains("localnode.prompts"))
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"flash\n")
+            .withf(|buf: &[u8]| buf == b"if ki.upgrade ~= nil and ki.upgrade.noacklater ~= nil then ki.upgrade.noacklater() end\n")
+            .returning(|buf: &[u8]| Ok(buf.len()) );
+
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"prevflash\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -903,7 +971,7 @@ mod unit {
             .times(1)
             .in_sequence(&mut seq)
             .withf(move |buf: &[u8]| {
-                buf == test_util::SIMPLE_FAKE_TEXTUAL_FW
+                buf == test_util::SIMPLE_FAKE_BINARY_FW
                     .reader()
                     .fill_buf()
                     .unwrap()
@@ -916,12 +984,10 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf == b"endflash\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
-
         interface
             .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"firmware.update()\n")
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"logout\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
         interface
             .expect_write()
@@ -932,7 +998,7 @@ mod unit {
         let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
         instrument
-            .flash_firmware(test_util::SIMPLE_FAKE_TEXTUAL_FW, Some(0))
+            .flash_firmware(test_util::SIMPLE_FAKE_BINARY_FW, Some(0))
             .expect("instrument should have written fw to MockInterface");
     }
 
@@ -952,9 +1018,15 @@ mod unit {
 
             fn flush(&mut self) -> std::io::Result<()>;
         }
+
         impl NonBlock for Interface {
             fn set_nonblocking(&mut self, enable: bool) -> crate::error::Result<()>;
         }
+
+        impl Active for Interface {
+            fn get_status(&mut self) -> crate::error::Result<StatusByte>;
+        }
+
         impl Info for Interface {}
     }
 

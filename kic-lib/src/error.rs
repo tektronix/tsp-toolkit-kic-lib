@@ -36,7 +36,7 @@ pub enum InstrumentError {
         details: String,
     },
 
-    #[cfg(feature = "debugging")]
+    #[cfg(debug_assertions)]
     /// There was an error when performing a debugging action.
     #[error("debug error occurred: {details}")]
     DebugError {
@@ -44,7 +44,7 @@ pub enum InstrumentError {
         details: String,
     },
 
-    #[cfg(feature = "debugging")]
+    #[cfg(debug_assertions)]
     /// The Debugger license was not accepted.
     #[error("debug license was not valid: {reason}")]
     DebugLicenseRejection {
