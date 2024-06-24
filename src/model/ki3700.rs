@@ -908,7 +908,6 @@ mod unit {
         let mut interface = MockInterface::new();
         let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
-
         interface
             .expect_write()
             .times(1)
@@ -920,7 +919,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"flash\n")
+            .withf(|buf: &[u8]| buf == b"prevflash\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -928,7 +927,7 @@ mod unit {
             .times(1)
             .in_sequence(&mut seq)
             .withf(move |buf: &[u8]| {
-                buf == test_util::SIMPLE_FAKE_TEXTUAL_FW
+                buf == test_util::SIMPLE_FAKE_BINARY_FW
                     .reader()
                     .fill_buf()
                     .unwrap()
@@ -956,7 +955,7 @@ mod unit {
         let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
         instrument
-            .flash_firmware(test_util::SIMPLE_FAKE_TEXTUAL_FW, Some(0))
+            .flash_firmware(test_util::SIMPLE_FAKE_BINARY_FW, Some(0))
             .expect("instrument should have written fw to MockInterface");
     }
 
