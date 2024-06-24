@@ -565,7 +565,7 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 50)
             .return_once(|buf: &mut [u8]| {
-                let msg = b"KEITHLEY INSTRUMENTS INC.,MODEL 3706A,,0123456789,1.2.3d\n";
+                let msg = b"KEITHLEY INSTRUMENTS INC.,MODEL 3706A,0123456789,1.2.3d\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
                         .reader()
@@ -594,7 +594,7 @@ mod unit {
             .info()
             .expect("instrument can get instrument information from MockInterface");
 
-        let exp_vendor = "KEITHLEY INSTRUMENTS".to_string();
+        let exp_vendor = "KEITHLEY INSTRUMENTS INC.".to_string();
         let exp_model = "3706A".to_string();
         let exp_serial = "0123456789".to_string();
         let exp_fw = "1.2.3d".to_string();
