@@ -85,16 +85,6 @@ fn is_2600(model: impl AsRef<str>) -> bool {
         "2604B-L",
         "2614B-L",
         "2634B-L",
-        "3706",
-        "3706-SNFP",
-        "3706-S",
-        "3706-NFP",
-        "3706A",
-        "3706A-SNFP",
-        "3706A-S",
-        "3706A-NFP",
-        "707B",
-        "708B",
     ]
     .contains(&model.as_ref())
 }
