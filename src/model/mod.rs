@@ -4,6 +4,7 @@ use crate::{
 };
 
 pub mod ki2600;
+pub mod ki3700;
 pub mod tti;
 pub mod versatest;
 
@@ -19,6 +20,10 @@ impl TryFrom<Box<dyn Interface>> for Box<dyn Instrument> {
             Ok(ins)
         } else if ki2600::Instrument::is(&info) {
             let mut ins = Box::new(ki2600::Instrument::new(interface, auth));
+            ins.as_mut().add_info(info);
+            Ok(ins)
+        } else if ki3700::Instrument::is(&info) {
+            let mut ins = Box::new(ki3700::Instrument::new(interface, auth));
             ins.as_mut().add_info(info);
             Ok(ins)
         } else if versatest::Instrument::is(&info) {
