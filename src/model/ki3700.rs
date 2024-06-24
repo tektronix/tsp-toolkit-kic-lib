@@ -27,7 +27,7 @@ impl Instrument {
     #[must_use]
     pub fn is(info: &InstrumentInfo) -> bool {
         info.model.as_ref().map_or(false, |model| {
-            model.split_ascii_whitespace().last().map_or(false, is_2600)
+            model.split_ascii_whitespace().last().map_or(false, is_3700)
         })
     }
 
@@ -49,42 +49,18 @@ impl Instrument {
 //Implement device_interface::Interface since it is a subset of instrument::Instrument trait.
 impl instrument::Instrument for Instrument {}
 
-fn is_2600(model: impl AsRef<str>) -> bool {
+fn is_3700(model: impl AsRef<str>) -> bool {
     [
-        "2601",
-        "2602",
-        "2611",
-        "2612",
-        "2635",
-        "2636",
-        "2601A",
-        "2602A",
-        "2611A",
-        "2612A",
-        "2635A",
-        "2636A",
-        "2651A",
-        "2657A",
-        "2601B",
-        "2601B-PULSE",
-        "2602B",
-        "2606B",
-        "2611B",
-        "2612B",
-        "2635B",
-        "2636B",
-        "2604B",
-        "2614B",
-        "2634B",
-        "2601B-L",
-        "2602B-L",
-        "2611B-L",
-        "2612B-L",
-        "2635B-L",
-        "2636B-L",
-        "2604B-L",
-        "2614B-L",
-        "2634B-L",
+        "3706",
+        "3706-SNFP",
+        "3706-S",
+        "3706-NFP",
+        "3706A",
+        "3706A-SNFP",
+        "3706A-S",
+        "3706A-NFP",
+        "707B",
+        "708B",
     ]
     .contains(&model.as_ref())
 }
@@ -153,8 +129,10 @@ impl Flash for Instrument {
     fn flash_firmware(&mut self, image: &[u8], _: Option<u16>) -> crate::error::Result<()> {
         let mut image = image.reader();
         self.write_all(b"localnode.prompts = 0\n")?;
-        self.write_all(b"flash\n")?;
+        self.write_all(b"prevflash\n")?;
+
         self.write_all(image.fill_buf().unwrap())?;
+
         self.write_all(b"endflash\n")?;
         Ok(())
     }
@@ -587,7 +565,7 @@ mod unit {
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf.len() >= 50)
             .return_once(|buf: &mut [u8]| {
-                let msg = b"KEITHLEY INSTRUMENTS,MODEL 2636B,0123456789,1.2.3d\n";
+                let msg = b"KEITHLEY INSTRUMENTS INC.,MODEL 3706A,0123456789,1.2.3d\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
                         .reader()
@@ -616,8 +594,8 @@ mod unit {
             .info()
             .expect("instrument can get instrument information from MockInterface");
 
-        let exp_vendor = "KEITHLEY INSTRUMENTS".to_string();
-        let exp_model = "2636B".to_string();
+        let exp_vendor = "KEITHLEY INSTRUMENTS INC.".to_string();
+        let exp_model = "3706A".to_string();
         let exp_serial = "0123456789".to_string();
         let exp_fw = "1.2.3d".to_string();
 
@@ -930,7 +908,6 @@ mod unit {
         let mut interface = MockInterface::new();
         let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
-
         interface
             .expect_write()
             .times(1)
@@ -942,7 +919,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"flash\n")
+            .withf(|buf: &[u8]| buf == b"prevflash\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         interface
@@ -950,7 +927,7 @@ mod unit {
             .times(1)
             .in_sequence(&mut seq)
             .withf(move |buf: &[u8]| {
-                buf == test_util::SIMPLE_FAKE_TEXTUAL_FW
+                buf == test_util::SIMPLE_FAKE_BINARY_FW
                     .reader()
                     .fill_buf()
                     .unwrap()
@@ -978,7 +955,7 @@ mod unit {
         let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
 
         instrument
-            .flash_firmware(test_util::SIMPLE_FAKE_TEXTUAL_FW, Some(0))
+            .flash_firmware(test_util::SIMPLE_FAKE_BINARY_FW, Some(0))
             .expect("instrument should have written fw to MockInterface");
     }
 

@@ -36,22 +36,6 @@ pub enum InstrumentError {
         details: String,
     },
 
-    #[cfg(feature = "debugging")]
-    /// There was an error when performing a debugging action.
-    #[error("debug error occurred: {details}")]
-    DebugError {
-        /// The details of the [`DebugError`]
-        details: String,
-    },
-
-    #[cfg(feature = "debugging")]
-    /// The Debugger license was not accepted.
-    #[error("debug license was not valid: {reason}")]
-    DebugLicenseRejection {
-        /// The reason the license was rejected
-        reason: String,
-    },
-
     /// There was an issue while disconnecting from an instrument.
     #[error("unable to gracefully disconnect from instrument: {details}")]
     DisconnectError {
