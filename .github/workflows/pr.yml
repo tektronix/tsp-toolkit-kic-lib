@@ -182,7 +182,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write-all
       checks: write
       pull-requests: read
     needs:
