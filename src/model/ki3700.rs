@@ -1,9 +1,7 @@
 use std::{
-    io::{BufRead, Read, Write},
+    io::{Read, Write},
     time::Duration,
 };
-
-use bytes::Buf;
 
 use crate::{
     instrument::{
@@ -126,13 +124,22 @@ impl Login for Instrument {
 impl Script for Instrument {}
 
 impl Flash for Instrument {
+    /*
+    Note: The packet size and delay was experimentally obtianed here.
+    Anything over 4096 chunk size and under 10ms delay causes the unit
+    to hang up on the unpdate around 6800k.
+     */
     fn flash_firmware(&mut self, image: &[u8], _: Option<u16>) -> crate::error::Result<()> {
-        let mut image = image.reader();
+
         self.write_all(b"localnode.prompts = 0\n")?;
         self.write_all(b"prevflash\n")?;
 
-        self.write_all(image.fill_buf().unwrap())?;
+        for chunk in image.chunks(4096) {
+            self.write_all(chunk)?;
+            std::thread::sleep(Duration::from_millis(10)); //The position and duration of this delay is intentional
+        }
 
+        std::thread::sleep(Duration::from_millis(10)); //The position and duration of this delay is intentional
         self.write_all(b"endflash\n")?;
         Ok(())
     }
