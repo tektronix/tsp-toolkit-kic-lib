@@ -22,6 +22,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 - Fix Support for FW flash on the 3706B and 70xB *Open Source Contribution: c3charvat*
 
+
 ## [0.15.1]
 
 ### Changed
@@ -32,21 +33,25 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Update `h2` crate (GHSA-q6cp-qfwq-4gcv), which isn't anticipated to be
   exploitable for this crate
 
+
 ## [0.15.0]
 
 ### Changed
 - Use `*TST?` on TTI instruments instead of `print("unlocked")`
 - Add short delay before dropping TTI Instrument to ensure `logout` is sent.
 
+
 ## [0.14.1]
 
 ### Fixed
 - Update Dependencies (TSP-576)
 
+
 ## [0.13.2]
 
 ### Fixed
 - Updated project manifests to have update version info
+
 
 ## [0.13.0]
 
