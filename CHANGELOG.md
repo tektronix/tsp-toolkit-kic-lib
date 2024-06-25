@@ -16,6 +16,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.16.0]
+
+### Fixed
+
+- Fix Support for FW flash on the 3706B and 70xB *Open Source Contribution: c3charvat*
+
 ## [0.15.1]
 
 ### Changed
@@ -48,7 +54,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Using read_password instead of prompt_password of rpassword crate (TSP-517)
 
 <!--Version Comparison Links-->
-[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-lib/compare/v0.15.1..HEAD
+[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-lib/compare/v0.16.0..HEAD
+[0.16.0]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.16.0
 [0.15.1]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.15.1
 [0.15.0]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.15.0
 [0.14.1]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.14.1
