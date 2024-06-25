@@ -130,7 +130,6 @@ impl Flash for Instrument {
     to hang up on the unpdate around 6800k.
      */
     fn flash_firmware(&mut self, image: &[u8], _: Option<u16>) -> crate::error::Result<()> {
-
         self.write_all(b"localnode.prompts = 0\n")?;
         self.write_all(b"prevflash\n")?;
 
