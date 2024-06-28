@@ -1,5 +1,4 @@
-#![feature(lint_reasons, rustdoc_missing_doc_code_examples)]
-#![feature(assert_matches)]
+#![feature(assert_matches, rustdoc_missing_doc_code_examples)]
 #![doc(html_logo_url = "../../../ki-comms_doc_icon.png")]
 
 //! The TSP Instrument crate defines the necessary components to enable communication
