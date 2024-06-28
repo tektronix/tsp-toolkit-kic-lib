@@ -56,7 +56,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [0.13.0]
 
 ### Changed
-- Using read_password instead of prompt_password of rpassword crate (TSP-517)
+- Using `read_password`instead of `prompt_password` of rpassword crate (TSP-517)
 
 <!--Version Comparison Links-->
 [Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-lib/compare/v0.16.1..HEAD
