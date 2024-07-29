@@ -184,7 +184,8 @@ impl NonBlock for Instrument {
 
 impl Drop for Instrument {
     fn drop(&mut self) {
-        let _ = self.interface.write_all(b"password\n");
+        let _ = self.write_all(b"abort\n");
+        let _ = self.write_all(b"*RST\n");
     }
 }
 
