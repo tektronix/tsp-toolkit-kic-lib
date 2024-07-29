@@ -16,7 +16,6 @@ use crate::{
 };
 use bytes::Buf;
 use language::Language;
-use serde::{Deserialize, Serialize};
 
 pub struct Instrument {
     info: Option<InstrumentInfo>,
@@ -128,17 +127,6 @@ impl Write for Instrument {
     }
 }
 
-/// The information necessary to flash an instrument.
-#[derive(Serialize, Deserialize, Debug)]
-struct FirmwareInfo {
-    /// For VersaTest only: `true` - the firmware is for a module; `false`: the firmware is for the mainframe
-    #[serde(rename = "IsModule")]
-    is_module: bool,
-
-    /// For VersaTest only: The slot number of the module to update.
-    #[serde(rename = "Slot")]
-    slot: u8,
-}
 pub const VERSATEST_FLASH_UTIL_STR: &[u8] = include_bytes!("resources/flashUtil.tsp");
 impl Flash for Instrument {
     fn flash_firmware(
@@ -287,6 +275,11 @@ mod unit {
         interface
             .expect_write()
             .times(..)
+            .withf(|buf: &[u8]| buf == b"*RST\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
         let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
@@ -414,6 +407,11 @@ mod unit {
                 }
                 Ok(msg.len())
             });
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"*RST\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
         interface
             .expect_write()
             .times(..)
@@ -549,6 +547,11 @@ mod unit {
         interface
             .expect_write()
             .times(..)
+            .withf(|buf: &[u8]| buf == b"*RST\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
@@ -590,6 +593,11 @@ mod unit {
                 }
                 Ok(msg.len())
             });
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"*RST\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
         interface
             .expect_write()
             .times(..)
@@ -664,6 +672,11 @@ mod unit {
         interface
             .expect_write()
             .times(..)
+            .withf(|buf: &[u8]| buf == b"*RST\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
@@ -732,6 +745,11 @@ mod unit {
         interface
             .expect_write()
             .times(..)
+            .withf(|buf: &[u8]| buf == b"*RST\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
@@ -796,6 +814,11 @@ mod unit {
             .times(1)
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf == b"test_script.save()\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"*RST\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
         interface
             .expect_write()
@@ -876,6 +899,11 @@ mod unit {
         interface
             .expect_write()
             .times(..)
+            .withf(|buf: &[u8]| buf == b"*RST\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
         let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
@@ -929,6 +957,11 @@ mod unit {
             .times(1)
             .in_sequence(&mut seq)
             .withf(|buf: &[u8]| buf == b"firmware.update()\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+        interface
+            .expect_write()
+            .times(..)
+            .withf(|buf: &[u8]| buf == b"*RST\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
         interface
             .expect_write()
