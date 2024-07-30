@@ -5,6 +5,7 @@ use std::{
 
 use bytes::Buf;
 use language::{CmdLanguage, Language};
+use tracing::{self, trace};
 
 use crate::{
     instrument::{
@@ -161,13 +162,26 @@ impl Flash for Instrument {
 }
 
 impl Read for Instrument {
+    #[tracing::instrument(skip(self, buf))]
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.interface.read(buf)
+        let b = self.interface.read(buf)?;
+        let ascii = String::from_utf8_lossy(buf);
+        let ascii = ascii.trim_end().trim_matches(['\0', '\n', '\r']);
+        if !ascii.is_empty() {
+            trace!("read from instrument: '{ascii}'");
+        }
+        Ok(b)
     }
 }
 
 impl Write for Instrument {
+    #[tracing::instrument(skip(self))]
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        if String::from_utf8_lossy(buf).contains("login") {
+            trace!("writing to instrument: 'login ****'");
+        } else {
+            trace!("writing to instrument: '{}'", String::from_utf8_lossy(buf));
+        }
         self.interface.write(buf)
     }
 
@@ -183,9 +197,15 @@ impl NonBlock for Instrument {
 }
 
 impl Drop for Instrument {
+    #[tracing::instrument(skip(self))]
     fn drop(&mut self) {
+        trace!("Calling TTI instrument drop");
         let _ = self.write_all(b"abort\n");
+        std::thread::sleep(Duration::from_millis(100));
         let _ = self.write_all(b"*RST\n");
+        std::thread::sleep(Duration::from_millis(100));
+        let _ = self.write_all(b"logout\n");
+        std::thread::sleep(Duration::from_millis(100));
     }
 }
 
