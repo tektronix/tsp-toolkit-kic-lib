@@ -199,6 +199,8 @@ impl NonBlock for Instrument {
 impl Drop for Instrument {
     fn drop(&mut self) {
         trace!("Calling 2600 instrument drop");
+        let _ = self.write_all(b"password\n");
+        std::thread::sleep(Duration::from_millis(100));
         let _ = self.write_all(b"*RST\n");
         std::thread::sleep(Duration::from_millis(100));
         let _ = self.write_all(b"abort\n");
