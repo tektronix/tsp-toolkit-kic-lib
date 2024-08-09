@@ -129,6 +129,13 @@ pub enum InstrumentError {
         lang: String,
     },
 
+    /// An error from the visa driver
+    #[error("visa error: {source}")]
+    VisaError {
+        #[from]
+        source: visa_rs::Error,
+    },
+
     /// An uncategorized error.
     #[error("{0}")]
     Other(String),

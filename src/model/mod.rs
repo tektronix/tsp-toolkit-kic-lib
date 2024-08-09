@@ -1,5 +1,6 @@
 use crate::{
-    instrument::{authenticate::Authenticate, Instrument},
+    instrument::{authenticate::Authenticate, Info, Instrument},
+    protocol::{self, Protocol},
     InstrumentError, Interface,
 };
 
@@ -8,6 +9,36 @@ pub mod ki3700;
 pub mod tti;
 pub mod versatest;
 
+impl TryFrom<Protocol> for Box<dyn Instrument> {
+    type Error = InstrumentError;
+
+    fn try_from(mut proto: Protocol) -> Result<Self, Self::Error> {
+        let info = proto.info()?;
+        let auth = Box::new(Authenticate {});
+        if tti::Instrument::is(&info) {
+            let mut ins = Box::new(tti::Instrument::new(proto, auth));
+            ins.as_mut().add_info(info);
+            Ok(ins)
+        } else if ki2600::Instrument::is(&info) {
+            let mut ins = Box::new(ki2600::Instrument::new(proto, auth));
+            ins.as_mut().add_info(info);
+            Ok(ins)
+        } else if ki3700::Instrument::is(&info) {
+            let mut ins = Box::new(ki3700::Instrument::new(proto, auth));
+            ins.as_mut().add_info(info);
+            Ok(ins)
+        } else if versatest::Instrument::is(&info) {
+            let mut ins = Box::new(versatest::Instrument::new(proto, auth));
+            ins.as_mut().add_info(info);
+            Ok(ins)
+        } else {
+            Err(InstrumentError::InstrumentError {
+                error: "unable to determine instrument type".to_string(),
+            })
+        }
+    }
+}
+
 impl TryFrom<Box<dyn Interface>> for Box<dyn Instrument> {
     type Error = InstrumentError;
 
@@ -15,19 +46,31 @@ impl TryFrom<Box<dyn Interface>> for Box<dyn Instrument> {
         let info = interface.as_mut().info()?;
         let auth = Box::new(Authenticate {});
         if tti::Instrument::is(&info) {
-            let mut ins = Box::new(tti::Instrument::new(interface, auth));
+            let mut ins = Box::new(tti::Instrument::new(
+                protocol::Protocol::Raw(interface),
+                auth,
+            ));
             ins.as_mut().add_info(info);
             Ok(ins)
         } else if ki2600::Instrument::is(&info) {
-            let mut ins = Box::new(ki2600::Instrument::new(interface, auth));
+            let mut ins = Box::new(ki2600::Instrument::new(
+                protocol::Protocol::Raw(interface),
+                auth,
+            ));
             ins.as_mut().add_info(info);
             Ok(ins)
         } else if ki3700::Instrument::is(&info) {
-            let mut ins = Box::new(ki3700::Instrument::new(interface, auth));
+            let mut ins = Box::new(ki3700::Instrument::new(
+                protocol::Protocol::Raw(interface),
+                auth,
+            ));
             ins.as_mut().add_info(info);
             Ok(ins)
         } else if versatest::Instrument::is(&info) {
-            let mut ins = Box::new(versatest::Instrument::new(interface, auth));
+            let mut ins = Box::new(versatest::Instrument::new(
+                protocol::Protocol::Raw(interface),
+                auth,
+            ));
             ins.as_mut().add_info(info);
             Ok(ins)
         } else {
