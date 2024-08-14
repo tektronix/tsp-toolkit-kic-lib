@@ -194,7 +194,7 @@ impl NonBlock for Instrument {
     fn set_nonblocking(&mut self, enable: bool) -> crate::error::Result<()> {
         match &mut self.protocol {
             Protocol::Raw(r) => r.set_nonblocking(enable),
-            Protocol::Visa(_) => Ok(()),
+            Protocol::Visa { .. } => Ok(()),
         }
     }
 }
