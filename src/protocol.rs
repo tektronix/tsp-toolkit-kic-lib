@@ -6,8 +6,9 @@ use std::{
 
 use tracing::{trace, warn};
 use visa_rs::{
-    enums::assert::AssertTrigPro, flags::AccessMode, AsResourceManager, DefaultRM, VisaString,
-    TIMEOUT_INFINITE,
+    enums::{assert::AssertTrigPro, status::ErrorCode},
+    flags::{AccessMode, FlushMode},
+    AsResourceManager, DefaultRM, VisaString, TIMEOUT_INFINITE,
 };
 
 use crate::{
@@ -131,7 +132,16 @@ impl Write for Protocol {
     fn flush(&mut self) -> std::io::Result<()> {
         match self {
             Self::Raw(r) => r.flush(),
-            Self::Visa { instr, .. } => instr.flush(),
+            Self::Visa { instr, .. } => match instr.visa_flush(FlushMode::IO_OUT_BUF) {
+                Ok(v) => Ok(v),
+                // viFlush(instrument, VI_IO_OUT_BUF) on USB throws this error, but we
+                // can just ignore it.
+                Err(e) if ErrorCode::from(e) == ErrorCode::ErrorInvMask => Ok(()),
+                Err(e) => Err(std::io::Error::new(
+                    ErrorKind::Other,
+                    format!("VISA flush error: {e}"),
+                )),
+            },
         }
     }
 }
