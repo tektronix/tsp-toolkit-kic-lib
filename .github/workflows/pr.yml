@@ -93,7 +93,7 @@ jobs:
           owner: tektronix
           repo: libvisa-stub
       - name: List Directory
-        run: ls -Rl /etc/*releases
+        run: ls -Rl *
       - name: Prebuild
         run: mkdir -p ${{env.CARGO_HOME}}; cargo build --tests
       - name: Run Tests
