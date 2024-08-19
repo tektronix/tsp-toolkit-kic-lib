@@ -74,7 +74,7 @@ jobs:
         password: ${{secrets.GITHUB_TOKEN}}
     env:
       CARGO_HOME: ".cargo"
-      RUSTFLAGS: "-Cinstrument-coverage -L ./"
+      RUSTFLAGS: "-Cinstrument-coverage -L ${{github.workspace}}"
       TEST_DIR: "test-results"
       LLVM_PROFILE_FILE: "../test-results/%p-%m.profraw"
     steps:
@@ -88,10 +88,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Get Latest Release
-        uses: pozetroninc/github-action-get-latest-release@v0.8.0
+        uses: robinraju/release-downloader@v1
         with:
-          owner: tektronix
-          repo: libvisa-stub
+          repository: tektronix/libvisa-stub
+          latest: true
+          fileName: '*'
       - name: List Directory
         run: ls -Rl *
       - name: Prebuild
