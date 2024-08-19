@@ -74,7 +74,7 @@ jobs:
         password: ${{secrets.GITHUB_TOKEN}}
     env:
       CARGO_HOME: ".cargo"
-      RUSTFLAGS: "-Cinstrument-coverage -L ${{github.workspace}}"
+      RUSTFLAGS: "-Cinstrument-coverage -L ./"
       TEST_DIR: "test-results"
       LLVM_PROFILE_FILE: "../test-results/%p-%m.profraw"
     steps:
