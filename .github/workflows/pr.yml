@@ -169,6 +169,7 @@ jobs:
     runs-on: ${{matrix.runner}}
     env:
       RUSTFLAGS: "-L ${{github.workspace}}"
+      LIB_VISA_PATH: "${{github.workflow}}"
     steps:
       - name: Tool Setup
         run: rustup update nightly && rustup default nightly
