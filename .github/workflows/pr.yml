@@ -164,7 +164,7 @@ jobs:
             triple: x86_64-pc-windows-msvc
             vscode-platform: win32-x64
           - runner: macos-latest
-            triple: aarch64-apple-darwin
+            triple: x86_64-apple-darwin
             vscode-platform: darwin-arm64
     runs-on: ${{matrix.runner}}
     steps:
