@@ -170,6 +170,8 @@ jobs:
     steps:
       - name: Tool Setup
         run: rustup update nightly && rustup default nightly
+      - name: Ensure Correct Target is Installed
+        run: rustup target add ${{matrix.triple}}
       - name: Tool Versions
         run: rustc --version
       - name: Get Latest VISA Stub Release
