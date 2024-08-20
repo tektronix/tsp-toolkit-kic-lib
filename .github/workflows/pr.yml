@@ -186,7 +186,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Build
         run: |
-          echo $RUSTFLAGS
+          ls -lR
+          echo "${RUSTFLAGS}"
           cargo build --verbose --target "${{matrix.triple}}" --release
           cargo build --verbose --target "${{matrix.triple}}" --release --tests
       - name: Upload Artifacts
