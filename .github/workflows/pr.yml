@@ -168,7 +168,7 @@ jobs:
             vscode-platform: darwin-arm64
     runs-on: ${{matrix.runner}}
     env:
-      RUSTFLAGS: "-L ./"
+      RUSTFLAGS: "-L ${{github.workspace}}"
     steps:
       - name: Tool Setup
         run: rustup update nightly && rustup default nightly
@@ -186,6 +186,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Build
         run: |
+          echo $RUSTFLAGS
           cargo build --verbose --target "${{matrix.triple}}" --release
           cargo build --verbose --target "${{matrix.triple}}" --release --tests
       - name: Upload Artifacts
