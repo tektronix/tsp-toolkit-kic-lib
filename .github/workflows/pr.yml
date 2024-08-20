@@ -167,6 +167,9 @@ jobs:
             triple: x86_64-apple-darwin
             vscode-platform: darwin-arm64
     runs-on: ${{matrix.runner}}
+    env:
+      CARGO_HOME: ".cargo"
+      RUSTFLAGS: "-L ./"
     steps:
       - name: Tool Setup
         run: rustup update nightly && rustup default nightly
