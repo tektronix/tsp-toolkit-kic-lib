@@ -24,7 +24,7 @@ jobs:
       - name: Tool Versions
         run: cargo fmt --version
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Check Style
         run: cargo fmt --check --verbose
 
@@ -40,7 +40,7 @@ jobs:
       - name: Tool Versions
         run: cargo clippy --version
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Lint
         run: cargo clippy
 
@@ -54,11 +54,11 @@ jobs:
         password: ${{secrets.GITHUB_TOKEN}}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Generate Rust BOM
         run: cargo cyclonedx --format json --all --describe crate -vvv
       - name: Upload Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: software-bom
           path: |
@@ -86,8 +86,8 @@ jobs:
           cargo --version
           grcov --version
       - name: Checkout
-        uses: actions/checkout@v3
-      - name: Get Latest Release
+        uses: actions/checkout@v4
+      - name: Get Latest VISA Stub Release
         uses: robinraju/release-downloader@v1
         with:
           repository: tektronix/libvisa-stub
@@ -110,7 +110,7 @@ jobs:
       #     CARGO_HOME: ".cargo"
       #     TEST_DIR: "test-results"
       - name: Upload Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{always()}}
         with:
           name: unit-test-report
@@ -123,7 +123,7 @@ jobs:
     needs: test
     steps:
       - name: Download Test Results
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: unit-test-report
           path: test-results
@@ -156,30 +156,42 @@ jobs:
     name: Build
     strategy:
       matrix:
-        target_triple:
-          - x86_64-pc-windows-gnu
-          - x86_64-unknown-linux-gnu
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/tektronix/tsp-toolkit-build:latest
-      credentials:
-        username: ${{github.actor}}
-        password: ${{secrets.GITHUB_TOKEN}}
+        include:
+          - runner: ubuntu-latest
+            triple: x86_64-unknown-linux-gnu
+            vscode-platform: linux-x64
+          - runner: windows-latest
+            triple: x86_64-pc-windows-msvc
+            vscode-platform: win32-x64
+          - runner: macos-latest
+            triple: aarch64-apple-darwin
+            vscode-platform: darwin-arm64
+    runs-on: ${{matrix.runner}}
     steps:
+      - name: Tool Setup
+        run: rustup update nightly && rustup default nightly
       - name: Tool Versions
         run: rustc --version
+      - name: Get Latest VISA Stub Release
+        uses: robinraju/release-downloader@v1
+        with:
+          repository: tektronix/libvisa-stub
+          latest: true
+          fileName: '*'
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Build
-        run: cargo build --target "${{matrix.target_triple}}" --release
+        run: |
+          cargo build --verbose --target "${{matrix.triple}}" --release
+          cargo build --verbose --target "${{matrix.triple}}" --release --tests
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: executable
           path: |
-            target/${{matrix.target_triple}}/release/kic*
-            !target/${{matrix.target_triple}}/**/*.d
-            !target/${{matrix.target_triple}}/**/*.rlib
+            target/${{matrix.triple}}/release/kic*
+            !target/${{matrix.triple}}/**/*.d
+            !target/${{matrix.triple}}/**/*.rlib
 
   release:
     name: Release
@@ -198,7 +210,7 @@ jobs:
     if: ${{ (endsWith(github.base_ref, 'main') && (contains(github.head_ref, 'release/')) || github.event.pull_request.merged ) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -237,7 +249,7 @@ jobs:
           echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
       - run: 'git tag --list ${V}*'
       - name: Get SBOM
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: software-bom
           path: sbom
