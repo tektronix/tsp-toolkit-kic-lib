@@ -168,7 +168,7 @@ jobs:
           #   vscode-platform: darwin-arm64
     runs-on: ${{matrix.runner}}
     env:
-      RUSTFLAGS: "-L all=${{github.workspace}}"
+      RUSTFLAGS: "-L ${{github.workspace}}"
       LIB_VISA_PATH: "${{github.workflow}}"
     steps:
       - name: Tool Setup
