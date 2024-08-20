@@ -168,7 +168,6 @@ jobs:
             vscode-platform: darwin-arm64
     runs-on: ${{matrix.runner}}
     env:
-      CARGO_HOME: ".cargo"
       RUSTFLAGS: "-L ./"
     steps:
       - name: Tool Setup
