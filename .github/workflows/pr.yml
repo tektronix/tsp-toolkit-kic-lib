@@ -176,18 +176,16 @@ jobs:
         run: rustup target add ${{matrix.triple}}
       - name: Tool Versions
         run: rustc --version
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Get Latest VISA Stub Release
         uses: robinraju/release-downloader@v1
         with:
           repository: tektronix/libvisa-stub
           latest: true
           fileName: '*'
-      - name: Checkout
-        uses: actions/checkout@v4
       - name: Build
         run: |
-          ls -lR
-          echo "${RUSTFLAGS}"
           cargo build --verbose --target "${{matrix.triple}}" --release
           cargo build --verbose --target "${{matrix.triple}}" --release --tests
       - name: Upload Artifacts
