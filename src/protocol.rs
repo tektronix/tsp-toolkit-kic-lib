@@ -26,6 +26,14 @@ use visa_rs::{
     AsResourceManager, DefaultRM, VisaString, TIMEOUT_INFINITE,
 };
 
+/// Look for local installation of VISA.
+///
+/// # Returns
+/// `true` if VISA is installed. `false` otherwise
+///
+/// # Panics
+/// `parse::<PathBuf>()` is called and unwrapped, so it _shouldn't_ panic.
+///
 #[must_use]
 pub fn is_visa_installed() -> bool {
     #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
@@ -42,29 +50,26 @@ pub fn is_visa_installed() -> bool {
         let Ok(search_paths) = search_paths.into_string() else {
             return false;
         };
-        for p in search_paths.split(":") {
+        for p in search_paths.split(':') {
             let Ok(mut dir) = Path::new(&p).read_dir() else {
                 return false;
             };
-            if dir
-                .find(|e| {
-                    let Ok(e) = e else {
-                        return false;
-                    };
-                    let Ok(f) = e.file_name().into_string() else {
-                        return false;
-                    };
+            if dir.any(|e| {
+                let Ok(e) = e else {
+                    return false;
+                };
+                let Ok(f) = e.file_name().into_string() else {
+                    return false;
+                };
 
-                    //parse::<PathBuf> is infallible so unwrap is ok here.
-                    let path = p.parse::<PathBuf>().unwrap().join(f);
+                //parse::<PathBuf> is infallible so unwrap is ok here.
+                let path = p.parse::<PathBuf>().unwrap().join(f);
 
-                    path.file_stem()
-                        .unwrap()
-                        .to_string_lossy()
-                        .contains("libvisa")
-                })
-                .is_some()
-            {
+                path.file_stem()
+                    .unwrap()
+                    .to_string_lossy()
+                    .contains("libvisa")
+            }) {
                 return true;
             }
         }
