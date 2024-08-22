@@ -129,6 +129,7 @@ pub enum InstrumentError {
         lang: String,
     },
 
+    #[cfg(feature = "visa")]
     /// An error from the visa driver
     #[error("visa error: {source}")]
     VisaError {
