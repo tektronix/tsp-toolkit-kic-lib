@@ -189,6 +189,8 @@ jobs:
         run: |
           cargo build --verbose --target "${{matrix.triple}}" --release
           cargo build --verbose --target "${{matrix.triple}}" --release --tests
+          cargo build --verbose --target "${{matrix.triple}}" --release --features "visa"
+          cargo build --verbose --target "${{matrix.triple}}" --release --tests --features "visa"
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
