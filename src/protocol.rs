@@ -6,7 +6,7 @@ use std::{
 };
 
 #[cfg(target_os = "linux")]
-use std::path::PathBuff;
+use std::path::PathBuf;
 
 use crate::{error::Result, instrument::Info, InstrumentError, Interface};
 
@@ -43,7 +43,7 @@ pub fn is_visa_installed() -> bool {
             return false;
         };
         for p in search_paths.split(":") {
-            let Ok(dir) = Path::new(&p).read_dir() else {
+            let Ok(mut dir) = Path::new(&p).read_dir() else {
                 return false;
             };
             if dir
