@@ -233,7 +233,7 @@ impl Clear for Protocol {
     type Error = InstrumentError;
     fn clear(&mut self) -> core::result::Result<(), Self::Error> {
         match self {
-            Self::Raw(r) => r.write_all(b"*CLS")?,
+            Self::Raw(r) => r.write_all(b"*CLS\n")?,
 
             #[cfg(feature = "visa")]
             Self::Visa { instr, .. } => instr.clear()?,
