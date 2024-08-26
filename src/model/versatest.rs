@@ -10,8 +10,8 @@ use crate::{
         info::{get_info, InstrumentInfo},
         language, Info, Login, Script,
     },
-    interface::Interface,
     interface::NonBlock,
+    protocol::Protocol,
     Flash, InstrumentError,
 };
 use bytes::Buf;
@@ -20,7 +20,7 @@ use tracing::trace;
 
 pub struct Instrument {
     info: Option<InstrumentInfo>,
-    interface: Box<dyn Interface>,
+    protocol: Protocol,
     auth: Box<dyn Authentication>,
 }
 
@@ -31,10 +31,10 @@ impl Instrument {
     }
 
     #[must_use]
-    pub const fn new(interface: Box<dyn Interface>, auth: Box<dyn Authentication>) -> Self {
+    pub const fn new(protocol: Protocol, auth: Box<dyn Authentication>) -> Self {
         Self {
             info: None,
-            interface,
+            protocol,
             auth,
         }
     }
@@ -115,7 +115,7 @@ impl Script for Instrument {}
 impl Read for Instrument {
     #[tracing::instrument(skip(self))]
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let b = self.interface.read(buf)?;
+        let b = self.protocol.read(buf)?;
         let ascii = String::from_utf8_lossy(buf);
         let ascii = ascii.trim_end().trim_matches(['\0', '\n', '\r']);
         if !ascii.is_empty() {
@@ -129,11 +129,11 @@ impl Write for Instrument {
     #[tracing::instrument(skip(self))]
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         trace!("writing to instrument: '{}'", String::from_utf8_lossy(buf));
-        self.interface.write(buf)
+        self.protocol.write(buf)
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        self.interface.flush()
+        self.protocol.flush()
     }
 }
 
@@ -194,7 +194,12 @@ impl Flash for Instrument {
 
 impl NonBlock for Instrument {
     fn set_nonblocking(&mut self, enable: bool) -> crate::error::Result<()> {
-        self.interface.set_nonblocking(enable)
+        match &mut self.protocol {
+            Protocol::Raw(r) => r.set_nonblocking(enable),
+
+            #[cfg(feature = "visa")]
+            Protocol::Visa { .. } => Ok(()),
+        }
     }
 }
 
@@ -211,6 +216,7 @@ impl Drop for Instrument {
 
 #[cfg(test)]
 mod unit {
+    use crate::protocol;
     use std::{
         assert_matches::assert_matches,
         io::{BufRead, Read, Write},
@@ -296,7 +302,8 @@ mod unit {
             .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
-        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
+        let mut instrument: Instrument =
+            Instrument::new(protocol::Protocol::Raw(Box::new(interface)), Box::new(auth));
 
         assert_matches!(instrument.check_login(), Ok(instrument::State::NotNeeded));
 
@@ -432,7 +439,8 @@ mod unit {
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
-        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
+        let mut instrument: Instrument =
+            Instrument::new(protocol::Protocol::Raw(Box::new(interface)), Box::new(auth));
 
         assert_matches!(instrument.check_login(), Ok(instrument::State::Needed));
 
@@ -569,7 +577,8 @@ mod unit {
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
-        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
+        let mut instrument: Instrument =
+            Instrument::new(protocol::Protocol::Raw(Box::new(interface)), Box::new(auth));
 
         assert_matches!(instrument.check_login(), Ok(instrument::State::Needed));
 
@@ -618,7 +627,8 @@ mod unit {
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
-        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
+        let mut instrument: Instrument =
+            Instrument::new(protocol::Protocol::Raw(Box::new(interface)), Box::new(auth));
 
         let info = instrument
             .info()
@@ -694,7 +704,8 @@ mod unit {
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
-        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
+        let mut instrument: Instrument =
+            Instrument::new(protocol::Protocol::Raw(Box::new(interface)), Box::new(auth));
 
         instrument
             .write_script(b"test_script", &b"line1\nline2\nline3"[..], false, false)
@@ -767,7 +778,8 @@ mod unit {
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
-        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
+        let mut instrument: Instrument =
+            Instrument::new(protocol::Protocol::Raw(Box::new(interface)), Box::new(auth));
 
         instrument
             .write_script(b"test_script", &b"line1\nline2\nline3"[..], false, true)
@@ -840,7 +852,8 @@ mod unit {
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
-        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
+        let mut instrument: Instrument =
+            Instrument::new(protocol::Protocol::Raw(Box::new(interface)), Box::new(auth));
 
         instrument
             .write_script(b"test_script", &b"line1\nline2\nline3"[..], true, false)
@@ -920,7 +933,8 @@ mod unit {
             .times(..)
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
-        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
+        let mut instrument: Instrument =
+            Instrument::new(protocol::Protocol::Raw(Box::new(interface)), Box::new(auth));
 
         instrument
             .write_script(b"test_script", &b"line1\nline2\nline3"[..], true, true)
@@ -983,7 +997,8 @@ mod unit {
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
-        let mut instrument: Instrument = Instrument::new(Box::new(interface), Box::new(auth));
+        let mut instrument: Instrument =
+            Instrument::new(protocol::Protocol::Raw(Box::new(interface)), Box::new(auth));
 
         instrument
             .flash_firmware(test_util::SIMPLE_FAKE_TEXTUAL_FW, Some(0))

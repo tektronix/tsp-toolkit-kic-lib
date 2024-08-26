@@ -20,3 +20,6 @@ pub use error::InstrumentError;
 pub use instrument::firmware::Flash;
 pub use interface::{connection_addr::ConnectionAddr, usbtmc, Interface};
 pub use model::{ki2600, tti, versatest};
+
+pub mod protocol;
+pub use protocol::is_visa_installed;

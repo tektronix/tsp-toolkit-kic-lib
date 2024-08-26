@@ -24,7 +24,7 @@ jobs:
       - name: Tool Versions
         run: cargo fmt --version
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Check Style
         run: cargo fmt --check --verbose
 
@@ -40,7 +40,7 @@ jobs:
       - name: Tool Versions
         run: cargo clippy --version
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Lint
         run: cargo clippy
 
@@ -54,11 +54,11 @@ jobs:
         password: ${{secrets.GITHUB_TOKEN}}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Generate Rust BOM
         run: cargo cyclonedx --format json --all --describe crate -vvv
       - name: Upload Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: software-bom
           path: |
@@ -72,6 +72,11 @@ jobs:
       credentials:
         username: ${{github.actor}}
         password: ${{secrets.GITHUB_TOKEN}}
+    env:
+      CARGO_HOME: ".cargo"
+      RUSTFLAGS: "-Cinstrument-coverage -L ./"
+      TEST_DIR: "test-results"
+      LLVM_PROFILE_FILE: "../test-results/%p-%m.profraw"
     steps:
       - name: Tool Versions
         run: |
@@ -81,22 +86,23 @@ jobs:
           cargo --version
           grcov --version
       - name: Checkout
-        uses: actions/checkout@v3
-
+        uses: actions/checkout@v4
+      - name: Get Latest VISA Stub Release
+        uses: robinraju/release-downloader@v1
+        with:
+          repository: tektronix/libvisa-stub
+          latest: true
+          fileName: '*'
+      - name: List Directory
+        run: ls -Rl *
       - name: Prebuild
         run: mkdir -p ${{env.CARGO_HOME}}; cargo build --tests
-        env:
-          CARGO_HOME: ".cargo"
-          TEST_DIR: "test-results"
       - name: Run Tests
         run: |
           mkdir -p "${{env.TEST_DIR}}"
           # TODO reinstate after this issue closes: https://github.com/xd009642/tarpaulin/issues/1493
           # cargo +nightly tarpaulin --verbose --all-features --workspace --timeout 120 --engine llvm --out xml --output-dir ${{env.TEST_DIR}}
-          cargo test --all -- -Z unstable-options --format json --report-time > ${{env.TEST_DIR}}/cargo_test.json
-        env:
-          CARGO_HOME: ".cargo"
-          TEST_DIR: "test-results"
+          LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PWD" cargo test --all -- -Z unstable-options --format json --report-time > ${{env.TEST_DIR}}/cargo_test.json
       # - name: Process Test Results
       #   run: |
       #     cat ${{env.TEST_DIR}}/cargo_test.json | cargo2junit > ${{env.TEST_DIR}}/report.xml
@@ -104,11 +110,8 @@ jobs:
       #     CARGO_HOME: ".cargo"
       #     TEST_DIR: "test-results"
       - name: Upload Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{always()}}
-        env:
-          CARGO_HOME: ".cargo"
-          TEST_DIR: "test-results"
         with:
           name: unit-test-report
           path: |
@@ -120,7 +123,7 @@ jobs:
     needs: test
     steps:
       - name: Download Test Results
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: unit-test-report
           path: test-results
@@ -153,30 +156,49 @@ jobs:
     name: Build
     strategy:
       matrix:
-        target_triple:
-          - x86_64-pc-windows-gnu
-          - x86_64-unknown-linux-gnu
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/tektronix/tsp-toolkit-build:latest
-      credentials:
-        username: ${{github.actor}}
-        password: ${{secrets.GITHUB_TOKEN}}
+        include:
+          - runner: ubuntu-latest
+            triple: x86_64-unknown-linux-gnu
+            vscode-platform: linux-x64
+          - runner: windows-latest
+            triple: x86_64-pc-windows-msvc
+            vscode-platform: win32-x64
+          # - runner: macos-latest
+          #   triple: x86_64-apple-darwin
+          #   vscode-platform: darwin-arm64
+    runs-on: ${{matrix.runner}}
+    env:
+      RUSTFLAGS: "-L ${{github.workspace}}"
+      LIB_VISA_PATH: "${{github.workflow}}"
     steps:
+      - name: Tool Setup
+        run: rustup update nightly && rustup default nightly
+      - name: Ensure Correct Target is Installed
+        run: rustup target add ${{matrix.triple}}
       - name: Tool Versions
         run: rustc --version
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+      - name: Get Latest VISA Stub Release
+        uses: robinraju/release-downloader@v1
+        with:
+          repository: tektronix/libvisa-stub
+          latest: true
+          fileName: '*'
       - name: Build
-        run: cargo build --target "${{matrix.target_triple}}" --release
+        run: |
+          cargo build --verbose --target "${{matrix.triple}}" --release
+          cargo build --verbose --target "${{matrix.triple}}" --release --tests
+          cargo build --verbose --target "${{matrix.triple}}" --release --features "visa"
+          cargo build --verbose --target "${{matrix.triple}}" --release --tests --features "visa"
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: executable
           path: |
-            target/${{matrix.target_triple}}/release/kic*
-            !target/${{matrix.target_triple}}/**/*.d
-            !target/${{matrix.target_triple}}/**/*.rlib
+            target/${{matrix.triple}}/release/kic*
+            !target/${{matrix.triple}}/**/*.d
+            !target/${{matrix.triple}}/**/*.rlib
 
   release:
     name: Release
@@ -195,7 +217,7 @@ jobs:
     if: ${{ (endsWith(github.base_ref, 'main') && (contains(github.head_ref, 'release/')) || github.event.pull_request.merged ) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -234,7 +256,7 @@ jobs:
           echo "commit=${COMMIT}" >> $GITHUB_OUTPUT
       - run: 'git tag --list ${V}*'
       - name: Get SBOM
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: software-bom
           path: sbom
