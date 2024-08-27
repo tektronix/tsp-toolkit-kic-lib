@@ -39,7 +39,7 @@ impl Display for ConnectionAddr {
 
 /// The information about an instrument.
 #[allow(clippy::module_name_repetitions)]
-#[derive(serde::Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(serde::Serialize, Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct InstrumentInfo {
     /// The human-readable name of the vendor that makes the instrument
     pub vendor: Option<String>,
@@ -229,18 +229,6 @@ impl Display for InstrumentInfo {
             write!(f, "{vendor},MODEL {model},{sn},{fw_rev}")
         } else {
             write!(f, "{vendor},MODEL {model},{sn},{fw_rev},{addr}")
-        }
-    }
-}
-
-impl Default for InstrumentInfo {
-    fn default() -> Self {
-        Self {
-            vendor: None,
-            model: None,
-            serial_number: None,
-            firmware_rev: None,
-            address: None,
         }
     }
 }
