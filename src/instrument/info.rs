@@ -232,3 +232,15 @@ impl Display for InstrumentInfo {
         }
     }
 }
+
+impl Default for InstrumentInfo {
+    fn default() -> Self {
+        Self {
+            vendor: None,
+            model: None,
+            serial_number: None,
+            firmware_rev: None,
+            address: None,
+        }
+    }
+}
