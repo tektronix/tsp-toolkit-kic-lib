@@ -21,6 +21,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Added
 
 - VISA support
+- Implement Default trait for InstumentInfo struct (TSP-785)
 
 ## [0.17.0]
 

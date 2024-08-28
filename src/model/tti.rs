@@ -5,7 +5,7 @@ use std::{
 
 use bytes::Buf;
 use language::{CmdLanguage, Language};
-use tracing::{self, trace};
+use tracing::trace;
 
 use crate::{
     instrument::{
