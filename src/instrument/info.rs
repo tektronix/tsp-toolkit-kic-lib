@@ -9,6 +9,9 @@ use std::{
     time::Duration,
 };
 
+#[cfg(feature = "visa")]
+use visa_rs::VisaString;
+
 /// A generic connection address that covers all the different connection types.
 /// Each device interface type will also have a [`TryFrom`] impl that converts from
 /// this enum to itself. [`From`] is **not** implemented because the conversion could
@@ -22,6 +25,11 @@ pub enum ConnectionAddr {
 
     /// A USBTMC connection is created with a [`UsbtmcAddr`].
     Usbtmc(UsbtmcAddr),
+
+    #[cfg(feature = "visa")]
+    /// A VISA resource string
+    Visa(VisaString),
+
     //Add other device interface types here
     Unknown,
 }
@@ -31,6 +39,8 @@ impl Display for ConnectionAddr {
         let s = match self {
             Self::Lan(lan_info) => lan_info.to_string(),
             Self::Usbtmc(usb_info) => usb_info.to_string(),
+            #[cfg(feature = "visa")]
+            Self::Visa(visa_info) => visa_info.to_string(),
             Self::Unknown => "<UNKNOWN>".to_string(),
         };
         write!(f, "{s}")
