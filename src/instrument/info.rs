@@ -1,51 +1,14 @@
 //! Define the trait and datatypes necessary to describe an instrument.
 use minidom::Element;
 
-use crate::{error::Result, usbtmc::UsbtmcAddr, InstrumentError};
+use crate::{error::Result, InstrumentError};
 use std::{
     fmt::Display,
     io::{Read, Write},
-    net::SocketAddr,
     time::Duration,
 };
 
-#[cfg(feature = "visa")]
-use visa_rs::VisaString;
-
-/// A generic connection address that covers all the different connection types.
-/// Each device interface type will also have a [`TryFrom`] impl that converts from
-/// this enum to itself. [`From`] is **not** implemented because the conversion could
-/// fail.
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ConnectionAddr {
-    /// A LAN connection is created with a [`SocketAddr`], which includes an [`IpAddr`] and
-    /// a port for the connection.
-    Lan(SocketAddr),
-
-    /// A USBTMC connection is created with a [`UsbtmcAddr`].
-    Usbtmc(UsbtmcAddr),
-
-    #[cfg(feature = "visa")]
-    /// A VISA resource string
-    Visa(VisaString),
-
-    //Add other device interface types here
-    Unknown,
-}
-
-impl Display for ConnectionAddr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            Self::Lan(lan_info) => lan_info.to_string(),
-            Self::Usbtmc(usb_info) => usb_info.to_string(),
-            #[cfg(feature = "visa")]
-            Self::Visa(visa_info) => visa_info.to_string(),
-            Self::Unknown => "<UNKNOWN>".to_string(),
-        };
-        write!(f, "{s}")
-    }
-}
+use crate::interface::connection_addr::ConnectionAddr;
 
 /// The information about an instrument.
 #[allow(clippy::module_name_repetitions)]
