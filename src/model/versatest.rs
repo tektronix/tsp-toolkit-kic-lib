@@ -46,7 +46,7 @@ impl Instrument {
 }
 
 fn is_versatest(model: impl AsRef<str>) -> bool {
-    ["VERSATEST-600", "TSPop", "TSP"].contains(&model.as_ref())
+    ["MP5103", "VERSATEST-300", "VERSATEST-600", "TSPop", "TSP"].contains(&model.as_ref())
 }
 
 //Implement device_interface::Interface since it is a subset of instrument::Instrument trait.
