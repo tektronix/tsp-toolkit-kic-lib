@@ -289,18 +289,10 @@ impl Protocol {
                 unparsable_string: visa_string,
             });
         };
-        trace!("Finding resource");
-        let mut rsc = rm.find_res_list(&resource_string)?;
-        trace!("Resource List: {rsc:?}");
-        let Some(rsc) = rsc.find_next()? else {
-            warn!("No resource found");
-            return Err(InstrumentError::ConnectionError {
-                details: "unable to find requested resource".to_string(),
-            });
-        };
-        trace!("Resource: {rsc:?}");
+
         trace!("Opening resource");
-        let instr: visa_rs::Instrument = rm.open(&rsc, AccessMode::NO_LOCK, TIMEOUT_INFINITE)?;
+        let instr: visa_rs::Instrument =
+            rm.open(&resource_string, AccessMode::NO_LOCK, TIMEOUT_INFINITE)?;
         trace!("Opened instrument: {instr:?}");
 
         Ok(Self::Visa { instr, rm })
