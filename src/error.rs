@@ -5,7 +5,7 @@ use std::{num::ParseIntError, string::FromUtf8Error};
 
 use thiserror::Error;
 
-use crate::instrument::info::ConnectionAddr;
+use crate::interface::connection_addr::ConnectionAddr;
 
 /// Define errors that originate from this crate
 #[derive(Error, Debug)]
