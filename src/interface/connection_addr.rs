@@ -7,6 +7,7 @@ use crate::interface::usbtmc::UsbtmcAddr;
 use visa_rs::VisaString;
 
 /// A generic connection address that covers all the different connection types.
+///
 /// Each device interface type will also have a [`TryFrom`] impl that converts from
 /// this enum to itself. [`From`] is **not** implemented because the conversion could
 /// fail.
