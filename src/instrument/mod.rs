@@ -5,6 +5,7 @@ pub mod firmware;
 pub mod info;
 pub mod language;
 pub mod login;
+pub mod reset;
 pub mod script;
 
 use std::{
@@ -18,10 +19,14 @@ pub use firmware::Flash;
 pub use info::Info;
 pub use language::{CmdLanguage, Language};
 pub use login::{Login, State};
+pub use reset::Reset;
 pub use script::Script;
 
 /// A marker trait that defines the traits any [`Instrument`] needs to have.
-pub trait Instrument: Flash + Info + Language + Login + Script + Read + Write + NonBlock {}
+pub trait Instrument:
+    Flash + Info + Language + Login + Script + Read + Write + NonBlock + Reset
+{
+}
 
 /// Read from a 'rw' until we are sure we have cleared the output queue.
 ///

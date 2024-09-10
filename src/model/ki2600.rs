@@ -11,7 +11,7 @@ use crate::{
         self,
         authenticate::Authentication,
         info::{get_info, InstrumentInfo},
-        language, Info, Login, Script,
+        language, Info, Login, Reset, Script,
     },
     interface::NonBlock,
     protocol::Protocol,
@@ -203,16 +203,23 @@ impl NonBlock for Instrument {
 
 impl Drop for Instrument {
     fn drop(&mut self) {
-        trace!("Calling 2600 instrument drop");
+        trace!("calling ki2600 drop...");
+        let _ = self.reset();
         let _ = self.write_all(b"password\n");
-        std::thread::sleep(Duration::from_millis(100));
-        let _ = self.write_all(b"*RST\n");
-        std::thread::sleep(Duration::from_millis(100));
-        let _ = self.write_all(b"abort\n");
         std::thread::sleep(Duration::from_millis(100));
     }
 }
 
+impl Reset for Instrument {
+    fn reset(&mut self) -> crate::error::Result<()> {
+        trace!("Calling ki2600 reset...");
+        let _ = self.write_all(b"*RST\n");
+        std::thread::sleep(Duration::from_millis(100));
+        let _ = self.write_all(b"abort\n");
+        std::thread::sleep(Duration::from_millis(100));
+        Ok(())
+    }
+}
 #[cfg(test)]
 mod unit {
     use std::{

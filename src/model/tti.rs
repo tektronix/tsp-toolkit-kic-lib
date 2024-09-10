@@ -12,7 +12,7 @@ use crate::{
         self,
         authenticate::Authentication,
         info::{get_info, InstrumentInfo},
-        language, Info, Login, Script,
+        language, Info, Login, Reset, Script,
     },
     interface::NonBlock,
     protocol::Protocol,
@@ -204,13 +204,21 @@ impl NonBlock for Instrument {
 impl Drop for Instrument {
     #[tracing::instrument(skip(self))]
     fn drop(&mut self) {
-        trace!("Calling TTI instrument drop");
+        trace!("calling tti drop...");
+        let _ = self.reset();
+        let _ = self.write_all(b"logout\n");
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
+impl Reset for Instrument {
+    fn reset(&mut self) -> crate::error::Result<()> {
+        trace!("calling tti reset...");
         let _ = self.write_all(b"abort\n");
         std::thread::sleep(Duration::from_millis(100));
         let _ = self.write_all(b"*RST\n");
         std::thread::sleep(Duration::from_millis(100));
-        let _ = self.write_all(b"logout\n");
-        std::thread::sleep(Duration::from_millis(100));
+        Ok(())
     }
 }
 
@@ -237,6 +245,9 @@ mod unit {
         let mut interface = MockInterface::new();
         let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
+
+        interface.expect_flush().times(..).returning(|| Ok(()));
+
         interface
             .expect_write()
             .times(1)
@@ -314,6 +325,8 @@ mod unit {
         let mut interface = MockInterface::new();
         let mut auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
+
+        interface.expect_flush().times(..).returning(|| Ok(()));
 
         interface
             .expect_write()
@@ -459,6 +472,8 @@ mod unit {
         let mut auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
+        interface.expect_flush().times(..).returning(|| Ok(()));
+
         interface
             .expect_write()
             .times(1)
@@ -601,6 +616,8 @@ mod unit {
         let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
+        interface.expect_flush().times(..).returning(|| Ok(()));
+
         interface
             .expect_set_nonblocking()
             .times(..)
@@ -671,6 +688,8 @@ mod unit {
         let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
 
+        interface.expect_flush().times(..).returning(|| Ok(()));
+
         interface
             .expect_write()
             .times(1)
@@ -724,6 +743,9 @@ mod unit {
         let mut interface = MockInterface::new();
         let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
+
+        interface.expect_flush().times(..).returning(|| Ok(()));
+
         interface
             .expect_write()
             .times(1)
@@ -777,6 +799,8 @@ mod unit {
         let mut interface = MockInterface::new();
         let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
+
+        interface.expect_flush().times(..).returning(|| Ok(()));
 
         interface
             .expect_write()
@@ -1015,6 +1039,9 @@ mod unit {
         let mut interface = MockInterface::new();
         let auth = MockAuthenticate::new();
         let mut seq = Sequence::new();
+
+        interface.expect_flush().times(..).returning(|| Ok(()));
+
         interface
             .expect_write()
             .times(..)
