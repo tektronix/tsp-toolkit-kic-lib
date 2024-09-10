@@ -13,6 +13,8 @@ where
     ///
     /// # Notes
     /// - Reset the instrument using *RST.
+    /// # Errors
+    /// Returns an [`InstrumentError`] if any errors occurred.
     fn reset(&mut self) -> Result<()> {
         self.write_all(b"*RST\n")?;
         self.flush()?;
