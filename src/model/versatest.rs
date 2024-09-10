@@ -8,7 +8,7 @@ use crate::{
         self,
         authenticate::Authentication,
         info::{get_info, InstrumentInfo},
-        language, Info, Login, Script,
+        language, Info, Login, Reset, Script,
     },
     interface::NonBlock,
     protocol::Protocol,
@@ -206,14 +206,21 @@ impl NonBlock for Instrument {
 impl Drop for Instrument {
     #[tracing::instrument(skip(self))]
     fn drop(&mut self) {
-        trace!("Calling MP5000 instrument drop");
+        trace!("calling versatest drop...");
+        let _ = self.reset();
+    }
+}
+
+impl Reset for Instrument {
+    fn reset(&mut self) -> crate::error::Result<()> {
+        trace!("calling versatest reset...");
         let _ = self.write_all(b"*RST\n");
         std::thread::sleep(Duration::from_millis(100));
         let _ = self.write_all(b"abort\n");
         std::thread::sleep(Duration::from_millis(100));
+        Ok(())
     }
 }
-
 #[cfg(test)]
 mod unit {
     use crate::protocol;
