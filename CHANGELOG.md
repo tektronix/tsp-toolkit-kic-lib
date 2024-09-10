@@ -22,6 +22,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 - VISA support
 - Implement Default trait for InstumentInfo struct (TSP-785)
+- Reset trait implemented
 
 ## [0.17.0]
 
