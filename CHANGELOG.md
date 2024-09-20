@@ -16,6 +16,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.18.1]
+
+### Fixed
+- Fix issue where versatest instrument fw flash would be aborted by drop
+
 ## [0.18.0]
 
 ### Added

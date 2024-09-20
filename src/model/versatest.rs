@@ -22,6 +22,7 @@ pub struct Instrument {
     info: Option<InstrumentInfo>,
     protocol: Protocol,
     auth: Box<dyn Authentication>,
+    fw_flash_in_progress: bool,
 }
 
 impl Instrument {
@@ -36,6 +37,7 @@ impl Instrument {
             info: None,
             protocol,
             auth,
+            fw_flash_in_progress: false,
         }
     }
 
@@ -144,6 +146,7 @@ impl Flash for Instrument {
         image: &[u8],
         firmware_info: Option<u16>,
     ) -> crate::error::Result<()> {
+        self.fw_flash_in_progress = true;
         let mut is_module = false;
         let slot_number: u16 = firmware_info.unwrap_or(0);
         if slot_number > 0 {
@@ -207,6 +210,10 @@ impl Drop for Instrument {
     #[tracing::instrument(skip(self))]
     fn drop(&mut self) {
         trace!("calling versatest drop...");
+        if self.fw_flash_in_progress {
+            trace!("FW flash in progress. Skipping instrument reset.");
+            return;
+        }
         let _ = self.reset();
     }
 }
@@ -221,6 +228,7 @@ impl Reset for Instrument {
         Ok(())
     }
 }
+
 #[cfg(test)]
 mod unit {
     use crate::protocol;
