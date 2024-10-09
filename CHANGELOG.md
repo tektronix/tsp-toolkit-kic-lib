@@ -16,6 +16,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.18.2]
+
+### Added
+
+- Add support for macOS (LAN only)
+
 ## [0.18.1]
 
 ### Fixed
@@ -78,7 +84,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Using `read_password`instead of `prompt_password` of rpassword crate (TSP-517)
 
 <!--Version Comparison Links-->
-[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-lib/compare/v0.18.1..HEAD
+[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-lib/compare/v0.18.2..HEAD
+[0.18.2]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.18.2
 [0.18.1]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.18.1
 [0.18.0]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.18.0
 [0.17.0]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.17.0
