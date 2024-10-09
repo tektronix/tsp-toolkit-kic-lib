@@ -190,7 +190,7 @@ jobs:
           cargo build --verbose --target "${{matrix.triple}}" --release
           cargo build --verbose --target "${{matrix.triple}}" --release --tests
       - name: Build VISA
-        if: ${{ matrix.runner != 'masos-latest' }}
+        if: ${{ matrix.runner != 'macos-latest' }}
         run: |
           cargo build --verbose --target "${{matrix.triple}}" --release --features "visa"
           cargo build --verbose --target "${{matrix.triple}}" --release --tests --features "visa"
