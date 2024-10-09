@@ -92,27 +92,11 @@ pub enum InstrumentError {
         source: ParseIntError,
     },
 
-    /// An error with communicating through rusb to the instrument
-    #[error("rusb error: {source}")]
-    RusbError {
-        #[from]
-        source: rusb::Error,
-    },
-
     /// The TSP error that was received from the instrument was malformed.
     #[error("unable to parse TSP error from instrument {error}")]
     TspErrorParseError {
         /// The text of the malformed error that was provided by the instrument
         error: String,
-    },
-
-    /// Converts a [`tmc::TMCError`] to a [`TeaspoonInterfaceError`]
-    #[error("USBTMC error: {source}")]
-    TmcError {
-        /// The [`tmc::TMCError`] from which this [`TeaspoonInterfaceError::TmcError`]
-        /// was derived.
-        #[from]
-        source: tmc::TMCError,
     },
 
     /// The queried instrument returned an unknown model number

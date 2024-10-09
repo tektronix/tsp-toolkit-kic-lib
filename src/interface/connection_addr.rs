@@ -1,8 +1,6 @@
 use std::fmt::Display;
 use std::net::SocketAddr;
 
-use crate::interface::usbtmc::UsbtmcAddr;
-
 #[cfg(feature = "visa")]
 use visa_rs::VisaString;
 
@@ -18,9 +16,6 @@ pub enum ConnectionAddr {
     /// a port for the connection.
     Lan(SocketAddr),
 
-    /// A USBTMC connection is created with a [`UsbtmcAddr`].
-    Usbtmc(UsbtmcAddr),
-
     #[cfg(feature = "visa")]
     /// A VISA resource string
     Visa(VisaString),
@@ -33,7 +28,6 @@ impl Display for ConnectionAddr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
             Self::Lan(lan_info) => lan_info.to_string(),
-            Self::Usbtmc(usb_info) => usb_info.to_string(),
 
             #[cfg(feature = "visa")]
             Self::Visa(visa_info) => visa_info.to_string(),
