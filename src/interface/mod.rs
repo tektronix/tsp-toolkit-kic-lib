@@ -12,7 +12,6 @@ use std::{
 
 pub mod async_stream;
 pub mod connection_addr;
-pub mod usbtmc;
 
 /// Defines a marker trait that we will implement on each device interface
 pub trait Interface: NonBlock + Read + Write + Info {}
