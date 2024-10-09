@@ -2,8 +2,10 @@ use std::{
     error::Error,
     fmt::Display,
     io::{Read, Write},
-    path::Path,
 };
+
+#[cfg(not(target_os = "macos"))]
+use std::path::Path;
 
 #[cfg(target_os = "linux")]
 use std::path::PathBuf;
