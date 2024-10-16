@@ -9,7 +9,6 @@ pub enum Event {
     FwComplete,
     ScriptProgress(Progress),
     ScriptComplete,
-    OperationComplete,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

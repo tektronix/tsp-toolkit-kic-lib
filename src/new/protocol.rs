@@ -1,14 +1,15 @@
 use std::{
     error::Error,
     fmt::Display,
-    io::{Read, Write},
+    io::{ErrorKind, Read, Write},
     net::TcpStream,
     time::Duration,
 };
 
-use visa_rs::enums::assert::AssertTrigPro;
+use tracing::{debug, trace};
+use visa_rs::{enums::assert::AssertTrigPro, AsResourceManager};
 
-use crate::InstrumentError;
+use crate::{ConnectionAddr, InstrumentError};
 
 use super::{Clear, Info, InstrumentInfo, Trigger};
 
@@ -80,6 +81,39 @@ pub enum Protocol {
     },
 }
 
+impl TryFrom<TcpStream> for Protocol {
+    type Error = InstrumentError;
+    fn try_from(value: TcpStream) -> core::result::Result<Self, Self::Error> {
+        //value.set_nonblocking(true)?;
+        Ok(Self::RawSocket(value))
+    }
+}
+
+impl TryFrom<ConnectionAddr> for Protocol {
+    type Error = InstrumentError;
+
+    fn try_from(value: ConnectionAddr) -> Result<Self, Self::Error> {
+        match value {
+            ConnectionAddr::Lan(socket_addr) => {
+                let stream = TcpStream::connect(socket_addr)?;
+                stream.try_into()
+            }
+            ConnectionAddr::Visa(visa_string) => {
+                let rm = visa_rs::DefaultRM::new()?;
+                let instr = rm.open(
+                    &visa_string,
+                    visa_rs::flags::AccessMode::NO_LOCK,
+                    Duration::from_secs(5),
+                )?;
+                Ok(Self::Visa { instr, rm })
+            }
+            ConnectionAddr::Unknown => Err(InstrumentError::ConnectionError {
+                details: "connection address unknown".to_string(),
+            }),
+        }
+    }
+}
+
 impl Write for Protocol {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         match self {
@@ -110,7 +144,22 @@ impl ReadStb for Protocol {
 
     fn read_stb(&mut self) -> core::result::Result<Stb, Self::Error> {
         Ok(match self {
-            Self::RawSocket(_) => Stb::NotSupported,
+            Self::RawSocket(s) => {
+                let buf = &mut [0u8; 5][..];
+                let x = match s.peek(buf) {
+                    Ok(b) => b,
+                    Err(e) => {
+                        return Err(e.into());
+                    }
+                };
+                if x > 0 {
+                    // set MAV
+                    Stb::Stb(0x0010)
+                } else {
+                    // don't set MAV
+                    Stb::Stb(0x0000)
+                }
+            }
             Self::Visa { instr, .. } => Stb::Stb(instr.read_stb()?),
         })
     }
@@ -145,32 +194,40 @@ impl Trigger for Protocol {
 impl Info for Protocol {
     type Error = InstrumentError;
 
+    #[tracing::instrument(skip(self))]
     fn info(&mut self) -> core::result::Result<InstrumentInfo, Self::Error> {
-        fn get_info(
-            instr: &mut (impl Read + Write),
-        ) -> core::result::Result<InstrumentInfo, InstrumentError> {
-            instr.write_all(b"*IDN?\n")?;
-            let mut info: Option<InstrumentInfo> = None;
-            for _ in 0..100 {
-                std::thread::sleep(Duration::from_millis(100));
-
-                let mut buf = vec![0u8; 100];
-                let _ = instr.read(&mut buf)?;
-                let first_null = buf.iter().position(|&x| x == b'\0').unwrap_or(buf.len());
-                let buf = &buf[..first_null];
-                if let Ok(i) = buf.try_into() {
-                    info = Some(i);
-                    break;
-                }
+        debug!("Writing *IDN?");
+        self.write_all(b"*IDN?\n")?;
+        let mut i = 0u8;
+        let info: Option<InstrumentInfo> = loop {
+            std::thread::sleep(Duration::from_millis(100));
+            i = i.saturating_add(1);
+            if i > 100 {
+                break None;
             }
-            info.ok_or(InstrumentError::InformationRetrievalError {
-                details: "unable to read instrument info".to_string(),
-            })
-        }
+            if !self.read_stb()?.mav()? {
+                trace!("attempt {i}: MAV false");
+                continue;
+            }
+            trace!("attempt {i}: MAV true");
 
-        match self {
-            Self::RawSocket(instr) => get_info(instr),
-            Self::Visa { instr, .. } => get_info(instr),
-        }
+            let mut buf = vec![0u8; 256];
+
+            match self.read(&mut buf) {
+                Ok(_) => {}
+                Err(e) if e.kind() == ErrorKind::WouldBlock => {}
+                Err(e) => return Err(e.into()),
+            }
+            let first_null = buf.iter().position(|&x| x == b'\0').unwrap_or(buf.len());
+            let buf = &buf[..first_null];
+            trace!("Got {} from *IDN?", String::from_utf8_lossy(buf));
+            if let Ok(i) = buf.try_into() {
+                break Some(i);
+            }
+
+        };
+        info.ok_or(InstrumentError::InformationRetrievalError {
+            details: "unable to read instrument info".to_string(),
+        })
     }
 }

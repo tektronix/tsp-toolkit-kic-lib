@@ -1,6 +1,5 @@
 use std::{
     io::{BufRead, Read, Write},
-    net::TcpStream,
     sync::mpsc,
     time::Duration,
 };
@@ -9,7 +8,6 @@ use bytes::Buf;
 use event::{Event, Progress};
 use model::Model;
 use tracing::trace;
-use visa_rs::AsResourceManager;
 
 use crate::{
     instrument::{self, CmdLanguage, Language, Login, Reset},
@@ -84,26 +82,7 @@ impl Instrument {
     /// # Errors
     /// Issues with visa connections or raw sockets may return errors
     pub fn new(conn_info: ConnectionAddr) -> crate::error::Result<Self> {
-        let mut protocol = match conn_info {
-            ConnectionAddr::Lan(socket_addr) => Protocol::RawSocket(TcpStream::connect_timeout(
-                &socket_addr,
-                Duration::from_secs(5),
-            )?),
-            ConnectionAddr::Visa(visa_string) => {
-                let rm = visa_rs::DefaultRM::new()?;
-                let instr = rm.open(
-                    &visa_string,
-                    visa_rs::flags::AccessMode::NO_LOCK,
-                    Duration::from_secs(5),
-                )?;
-                Protocol::Visa { instr, rm }
-            }
-            ConnectionAddr::Unknown => {
-                return Err(InstrumentError::ConnectionError {
-                    details: "connection address unknown".to_string(),
-                })
-            }
-        };
+        let mut protocol: super::protocol::Protocol = conn_info.try_into()?;
 
         let info = protocol.info()?;
 
@@ -117,7 +96,9 @@ impl Instrument {
 }
 
 impl Write for Instrument {
+    #[tracing::instrument(skip(self, buf))]
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        trace!("Writing to instrument: {}", String::from_utf8_lossy(buf));
         self.protocol.write(buf)
     }
 
@@ -135,8 +116,36 @@ impl Write for Instrument {
 }
 
 impl Read for Instrument {
+    /// Try to read from the instrument in a non-blocking way.
+    ///
+    /// # Errors
+    /// If the operation would block (i.e. a message is not yet available from
+    /// the instrument), returns `std::io::ErrorKind::WouldBlock`
+    ///
+    /// Other errors include [`visa_rs::Instrument`] read errors and [`TcpStream`]
+    /// io errors.
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.protocol.read(buf)
+        //match self.protocol {
+        //    Protocol::RawSocket(_) => self.protocol.read(buf),
+        //    Protocol::Visa { .. } => self.protocol.read(buf),
+        //        match self.protocol.read_stb() {
+        //        Ok(x) => {
+        //            match x.mav() {
+        //                Ok(false) => Err(std::io::Error::new(
+        //                    std::io::ErrorKind::WouldBlock,
+        //                    "read operation would block",
+        //                )),
+
+        //                // Err(_) means x must be `Stb::NotSupported`, therefore we can just read
+        //                Ok(true)
+        //                | Err(_) => self.protocol.read(buf)
+        //            }
+        //        }
+        //        Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e)),
+        //    },
+        //}
+        //self.protocol.read(buf)
     }
 }
 
@@ -205,12 +214,6 @@ impl Script for Instrument {
         self.write_all_raw(format!("{name}=nil\n").as_bytes(), None, None)?;
         self.flush()?;
         self.write_all_raw(format!("loadscript {name}\n").as_bytes(), None, None)?;
-
-        self.write_all_raw(
-            script,
-            Some(Event::ScriptProgress),
-            Some(|| Event::ScriptComplete),
-        )?;
 
         let mut progress = Progress::new(script.len());
         for line in script.lines() {
@@ -346,8 +349,6 @@ impl Flash for Instrument {
         if let Model::Mp5103(_) = self.model {
             //TODO This is temporary: Only use while not defined in FW
             self.write_script(b"FlashUtil", VERSATEST_FLASH_UTIL_STR, false, true)?;
-            //.update {"FileName": "C:/Users/esarver1/Downloads/trebuchet-mainframe-sd-225642.x", "IsModule": false, "Slot": 1}
-            //.update {"FileName": "C:/Users/esarver1/Downloads/kingarthur-module-225665.x", "IsModule": true, "Slot": 1}
 
             self.write_all_raw(b"localnode.prompts=0\n", None, None)?;
             //let mut image = image.reader();

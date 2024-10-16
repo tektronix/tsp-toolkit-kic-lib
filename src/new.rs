@@ -24,6 +24,41 @@ pub struct InstrumentInfo {
     pub address: Option<ConnectionAddr>,
 }
 
+impl Display for InstrumentInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let vendor = self.vendor.as_ref().map_or_else(
+            || String::from("<UNKNOWN VENDOR>"),
+            std::clone::Clone::clone,
+        );
+
+        let model: String = self
+            .model
+            .as_ref()
+            .map_or_else(|| String::from("<UNKNOWN MODEL>"), Model::to_string);
+
+        let sn: String = self.serial_number.as_ref().map_or_else(
+            || String::from("<UNKNOWN SERIAL NUMBER>"),
+            std::clone::Clone::clone,
+        );
+
+        let fw_rev = self.firmware_rev.as_ref().map_or_else(
+            || String::from("<UNKNOWN FIRMWARE REVISION>"),
+            std::clone::Clone::clone,
+        );
+
+        let addr = self
+            .address
+            .as_ref()
+            .map_or_else(|| ConnectionAddr::Unknown, std::clone::Clone::clone);
+
+        if addr == ConnectionAddr::Unknown {
+            write!(f, "{vendor},MODEL {model},{sn},{fw_rev}")
+        } else {
+            write!(f, "{vendor},MODEL {model},{sn},{fw_rev},{addr}")
+        }
+    }
+}
+
 /// The trait an instrument must implement in order to flash the firmware onto an
 /// instrument.
 pub trait Flash {
