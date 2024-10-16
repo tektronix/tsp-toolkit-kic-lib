@@ -22,6 +22,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 - Add support for macOS (LAN only)
 
+### Removed
+
+- Remove support for USBTMC without VISA
+
 ## [0.18.1]
 
 ### Fixed
