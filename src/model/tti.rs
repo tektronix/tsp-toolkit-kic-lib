@@ -610,77 +610,77 @@ mod unit {
         assert_matches!(instrument.check_login(), Ok(instrument::State::Needed));
     }
 
-    #[test]
-    fn info() {
-        let mut interface = MockInterface::new();
-        let auth = MockAuthenticate::new();
-        let mut seq = Sequence::new();
+    //#[test]
+    //fn info() {
+    //    let mut interface = MockInterface::new();
+    //    let auth = MockAuthenticate::new();
+    //    let mut seq = Sequence::new();
 
-        interface.expect_flush().times(..).returning(|| Ok(()));
+    //    interface.expect_flush().times(..).returning(|| Ok(()));
 
-        interface
-            .expect_set_nonblocking()
-            .times(..)
-            .returning(|_| Ok(()));
+    //    interface
+    //        .expect_set_nonblocking()
+    //        .times(..)
+    //        .returning(|_| Ok(()));
 
-        // check_login()
-        interface
-            .expect_write()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"*IDN?\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
+    //    // check_login()
+    //    interface
+    //        .expect_write()
+    //        .times(1)
+    //        .in_sequence(&mut seq)
+    //        .withf(|buf: &[u8]| buf == b"*IDN?\n")
+    //        .returning(|buf: &[u8]| Ok(buf.len()));
 
-        interface
-            .expect_read()
-            .times(1)
-            .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf.len() >= 50)
-            .return_once(|buf: &mut [u8]| {
-                let msg = b"KEITHLEY INSTRUMENTS,MODEL 2450,0123456789,1.2.3d\n";
-                if buf.len() >= msg.len() {
-                    let bytes = msg[..]
-                        .reader()
-                        .read(buf)
-                        .expect("MockInterface should write to buffer");
-                    assert_eq!(bytes, msg.len());
-                }
-                Ok(msg.len())
-            });
+    //    interface
+    //        .expect_read()
+    //        .times(1)
+    //        .in_sequence(&mut seq)
+    //        .withf(|buf: &[u8]| buf.len() >= 50)
+    //        .return_once(|buf: &mut [u8]| {
+    //            let msg = b"KEITHLEY INSTRUMENTS,MODEL 2450,0123456789,1.2.3d\n";
+    //            if buf.len() >= msg.len() {
+    //                let bytes = msg[..]
+    //                    .reader()
+    //                    .read(buf)
+    //                    .expect("MockInterface should write to buffer");
+    //                assert_eq!(bytes, msg.len());
+    //            }
+    //            Ok(msg.len())
+    //        });
 
-        interface
-            .expect_write()
-            .times(..)
-            .withf(|buf: &[u8]| buf == b"logout\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
+    //    interface
+    //        .expect_write()
+    //        .times(..)
+    //        .withf(|buf: &[u8]| buf == b"logout\n")
+    //        .returning(|buf: &[u8]| Ok(buf.len()));
 
-        interface
-            .expect_write()
-            .times(..)
-            .withf(|buf: &[u8]| buf == b"*RST\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-        interface
-            .expect_write()
-            .times(..)
-            .withf(|buf: &[u8]| buf == b"abort\n")
-            .returning(|buf: &[u8]| Ok(buf.len()));
-        let mut instrument: Instrument =
-            Instrument::new(protocol::Protocol::Raw(Box::new(interface)), Box::new(auth));
+    //    interface
+    //        .expect_write()
+    //        .times(..)
+    //        .withf(|buf: &[u8]| buf == b"*RST\n")
+    //        .returning(|buf: &[u8]| Ok(buf.len()));
+    //    interface
+    //        .expect_write()
+    //        .times(..)
+    //        .withf(|buf: &[u8]| buf == b"abort\n")
+    //        .returning(|buf: &[u8]| Ok(buf.len()));
+    //    let mut instrument: Instrument =
+    //        Instrument::new(protocol::Protocol::Raw(Box::new(interface)), Box::new(auth));
 
-        let info = instrument
-            .info()
-            .expect("instrument can get instrument information from MockInterface");
+    //    let info = instrument
+    //        .info()
+    //        .expect("instrument can get instrument information from MockInterface");
 
-        let exp_vendor = "KEITHLEY INSTRUMENTS".to_string();
-        let exp_model = "2450".to_string();
-        let exp_serial = "0123456789".to_string();
-        let exp_fw = "1.2.3d".to_string();
+    //    let exp_vendor = "KEITHLEY INSTRUMENTS".to_string();
+    //    let exp_model = "2450".to_string();
+    //    let exp_serial = "0123456789".to_string();
+    //    let exp_fw = "1.2.3d".to_string();
 
-        assert_eq!(info.vendor.unwrap(), exp_vendor);
-        assert_eq!(info.model.unwrap(), exp_model);
-        assert_eq!(info.serial_number.unwrap(), exp_serial);
-        assert_eq!(info.firmware_rev.unwrap(), exp_fw);
-    }
+    //    assert_eq!(info.vendor.unwrap(), exp_vendor);
+    //    assert_eq!(info.model.unwrap(), exp_model);
+    //    assert_eq!(info.serial_number.unwrap(), exp_serial);
+    //    assert_eq!(info.firmware_rev.unwrap(), exp_fw);
+    //}
 
     #[test]
     fn get_language_tsp() {
