@@ -33,7 +33,7 @@ pub trait Instrument:
 /// # Errors
 /// Whatever can errors can occur with [`std::io::Read`], [`std::io::Write`] or
 /// [`tsp_toolkit_kic_lib::interface::NonBlock`].
-pub fn clear_output_queue<T: Read + Write + NonBlock + ?Sized>(
+pub fn clear_output_queue<T: Read + Write + ?Sized>(
     rw: &mut T,
     max_attempts: usize,
     delay_between_attempts: Duration,
@@ -41,8 +41,6 @@ pub fn clear_output_queue<T: Read + Write + NonBlock + ?Sized>(
     let timestamp = chrono::Utc::now().to_string();
 
     rw.write_all(format!("print(\"{timestamp}\")\n").as_bytes())?;
-
-    rw.set_nonblocking(true)?;
 
     let mut accumulate = String::new();
     for _ in 0..max_attempts {

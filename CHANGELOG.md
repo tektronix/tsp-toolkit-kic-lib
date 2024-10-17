@@ -16,6 +16,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.18.3]
+
+### Fixed
+
+- Fix issue with getting instrument information if there is data on the output queue
+
 ## [0.18.2]
 
 ### Added
@@ -88,7 +94,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Using `read_password`instead of `prompt_password` of rpassword crate (TSP-517)
 
 <!--Version Comparison Links-->
-[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-lib/compare/v0.18.2..HEAD
+[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-lib/compare/v0.18.3..HEAD
+[0.18.3]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.18.3
 [0.18.2]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.18.2
 [0.18.1]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.18.1
 [0.18.0]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.18.0

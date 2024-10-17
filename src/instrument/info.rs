@@ -10,6 +10,8 @@ use std::{
 
 use crate::interface::connection_addr::ConnectionAddr;
 
+use super::clear_output_queue;
+
 /// The information about an instrument.
 #[allow(clippy::module_name_repetitions)]
 #[derive(serde::Serialize, Debug, Default, Clone, PartialEq, Eq, Hash)]
@@ -36,6 +38,11 @@ pub struct InstrumentInfo {
 /// - Any error in converting the retrieved IDN string into [`InstrumentInfo`]
 #[allow(clippy::module_name_repetitions)]
 pub fn get_info<T: Read + Write + ?Sized>(rw: &mut T) -> Result<InstrumentInfo> {
+    rw.write_all(b"abort\n")?;
+    std::thread::sleep(Duration::from_millis(100));
+    rw.write_all(b"*CLS\n")?;
+    std::thread::sleep(Duration::from_millis(100));
+    clear_output_queue(rw, 1000, Duration::from_millis(1))?;
     rw.write_all(b"*IDN?\n")?;
     let mut info: Option<InstrumentInfo> = None;
     for _ in 0..100 {
