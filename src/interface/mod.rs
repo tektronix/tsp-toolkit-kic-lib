@@ -35,20 +35,6 @@ impl NonBlock for TcpStream {
 impl Info for TcpStream {
     // write all methods for Info trait here
     fn info(&mut self) -> Result<InstrumentInfo> {
-        let ip_addr = self.peer_addr();
-        if let Ok(ip_addr) = ip_addr {
-            let ip_addr = ip_addr.ip();
-            let uri = format!("http://{ip_addr}/lxi/identification");
-            let resp = reqwest::blocking::get(uri);
-            if let Ok(response) = resp {
-                if let Ok(txt) = response.text() {
-                    if let Ok(info) = InstrumentInfo::try_from(&txt) {
-                        return Ok(info);
-                    }
-                }
-            }
-        }
-        // if lxi page is not available, then get info from the instrument
         get_info(self)
     }
 }
