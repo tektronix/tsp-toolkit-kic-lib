@@ -35,6 +35,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [0.18.1]
 
 ### Fixed
+
 - Fix issue where versatest instrument fw flash would be aborted by drop
 
 ## [0.18.0]
@@ -65,6 +66,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Implemented Drop for AsyncStream (TSP-584)
 
 ### Security
+
 - Update `h2` crate (GHSA-q6cp-qfwq-4gcv), which isn't anticipated to be
   exploitable for this crate
 
@@ -72,6 +74,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [0.15.0]
 
 ### Changed
+
 - Use `*TST?` on TTI instruments instead of `print("unlocked")`
 - Add short delay before dropping TTI Instrument to ensure `logout` is sent.
 
@@ -79,19 +82,22 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [0.14.1]
 
 ### Fixed
+
 - Update Dependencies (TSP-576)
 
 
 ## [0.13.2]
 
 ### Fixed
+
 - Updated project manifests to have update version info
 
 
 ## [0.13.0]
 
 ### Changed
-- Using `read_password`instead of `prompt_password` of rpassword crate (TSP-517)
+
+- Using `read_password` instead of `prompt_password` of rpassword crate (TSP-517)
 
 <!--Version Comparison Links-->
 [Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-lib/compare/v0.18.3..HEAD
