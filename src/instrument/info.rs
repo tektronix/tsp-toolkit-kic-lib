@@ -231,7 +231,6 @@ impl Display for InstrumentInfo {
 mod unit {
     use super::InstrumentInfo;
 
-
     #[test]
     fn idn_to_instrument_info_prompts() {
         let input = br"TSP>
@@ -250,8 +249,6 @@ TSP>";
 
         let actual = actual.unwrap();
 
-
         assert_eq!(actual, expected);
-
     }
 }
