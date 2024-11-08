@@ -1,5 +1,6 @@
 //! Define the trait and datatypes necessary to describe an instrument.
 use minidom::Element;
+use tracing::{instrument, trace};
 
 use crate::{error::Result, InstrumentError};
 use std::{
@@ -37,6 +38,7 @@ pub struct InstrumentInfo {
 /// - Any [`std::io::Error`] that can occur with a [`Read`] or [`Write`] call
 /// - Any error in converting the retrieved IDN string into [`InstrumentInfo`]
 #[allow(clippy::module_name_repetitions)]
+#[instrument(skip(rw))]
 pub fn get_info<T: Read + Write + ?Sized>(rw: &mut T) -> Result<InstrumentInfo> {
     rw.write_all(b"abort\n")?;
     std::thread::sleep(Duration::from_millis(100));
@@ -52,12 +54,13 @@ pub fn get_info<T: Read + Write + ?Sized>(rw: &mut T) -> Result<InstrumentInfo> 
         let _ = rw.read(&mut buf)?;
         let first_null = buf.iter().position(|&x| x == b'\0').unwrap_or(buf.len());
         let buf = &buf[..first_null];
+        trace!("Buffer after *IDN?: {}", String::from_utf8_lossy(buf));
         if let Ok(i) = buf.try_into() {
             info = Some(i);
             break;
         }
     }
-    info.ok_or(InstrumentError::InformationRetrievalError {
+    info.ok_or_else(|| InstrumentError::InformationRetrievalError {
         details: "unable to read instrument info".to_string(),
     })
 }
@@ -78,46 +81,57 @@ impl TryFrom<&[u8]> for InstrumentInfo {
     type Error = InstrumentError;
 
     fn try_from(idn: &[u8]) -> std::result::Result<Self, Self::Error> {
-        let parts: Vec<&[u8]> = idn
-            .split(|c| *c == b',' || *c == b'\n' || *c == b'\0')
-            .collect();
+        let idn = idn
+            .iter()
+            .position(|&e| e == b'\0')
+            .map_or(idn, |first_null| &idn[..first_null]);
 
-        let (vendor, model, serial_number, firmware_rev) = match &parts[..] {
-            &[v, m, s, f, ..] => {
-                let fw_rev = String::from_utf8_lossy(f)
-                    .to_string()
-                    .trim_end_matches(|c| c == char::from(0))
-                    .trim()
-                    .to_string();
-                (
-                    Some(String::from_utf8_lossy(v).to_string()),
-                    String::from_utf8_lossy(m)
-                        .split("MODEL ")
-                        .last()
-                        .map(std::string::ToString::to_string),
-                    Some(String::from_utf8_lossy(s).to_string()),
-                    Some(fw_rev),
-                )
-            }
-            _ => {
-                return Err(InstrumentError::InformationRetrievalError {
-                    details: "unable to parse instrument information".to_string(),
-                });
-            }
-        };
+        for line in idn.split(|c| *c == b'\n') {
+            let parts: Vec<&[u8]> = line.trim_ascii().split(|c| *c == b',').collect();
 
-        if model.is_none() {
-            return Err(InstrumentError::InformationRetrievalError {
-                details: "unable to parse model".to_string(),
-            });
+            if parts.len() != 4 {
+                continue;
+            }
+
+            match &parts[..] {
+                &[v, m, s, f, ..] => {
+                    let fw_rev = String::from_utf8_lossy(f)
+                        .to_string()
+                        .trim_end_matches(|c| c == char::from(0))
+                        .trim()
+                        .to_string();
+                    let (vendor, model, serial_number, firmware_rev) = (
+                        Some(String::from_utf8_lossy(v).to_string()),
+                        String::from_utf8_lossy(m)
+                            .split("MODEL ")
+                            .last()
+                            .map(std::string::ToString::to_string),
+                        Some(String::from_utf8_lossy(s).to_string()),
+                        Some(fw_rev),
+                    );
+                    if model.is_none() {
+                        return Err(InstrumentError::InformationRetrievalError {
+                            details: "unable to parse model".to_string(),
+                        });
+                    }
+
+                    return Ok(Self {
+                        vendor,
+                        model,
+                        serial_number,
+                        firmware_rev,
+                        address: None,
+                    });
+                }
+                _ => {
+                    return Err(InstrumentError::InformationRetrievalError {
+                        details: "unable to parse instrument information".to_string(),
+                    });
+                }
+            };
         }
-
-        Ok(Self {
-            vendor,
-            model,
-            serial_number,
-            firmware_rev,
-            address: None,
+        Err(InstrumentError::InformationRetrievalError {
+            details: "unable to get instrument information".to_string(),
         })
     }
 }
@@ -210,5 +224,31 @@ impl Display for InstrumentInfo {
         } else {
             write!(f, "{vendor},MODEL {model},{sn},{fw_rev},{addr}")
         }
+    }
+}
+
+#[cfg(test)]
+mod unit {
+    use super::InstrumentInfo;
+
+    #[test]
+    fn idn_to_instrument_info_prompts() {
+        let input = br"TSP>
+KEITHLEY INSTRUMENTS,MODEL 2461,04331961,1.7.12b
+TSP>";
+        let expected = InstrumentInfo {
+            vendor: Some("KEITHLEY INSTRUMENTS".to_string()),
+            model: Some("2461".to_string()),
+            serial_number: Some("04331961".to_string()),
+            firmware_rev: Some("1.7.12b".to_string()),
+            address: None,
+        };
+
+        let actual = InstrumentInfo::try_from(&input[..]);
+        assert!(actual.is_ok(), "Unable to parse InstrumentInfo from &[u8]");
+
+        let actual = actual.unwrap();
+
+        assert_eq!(actual, expected);
     }
 }
