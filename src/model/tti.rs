@@ -28,7 +28,7 @@ pub struct Instrument {
 impl Instrument {
     #[must_use]
     pub fn is(info: &InstrumentInfo) -> bool {
-        info.model.as_ref().map_or(false, is_tti)
+        info.model.as_ref().is_some_and(is_tti)
     }
 
     #[must_use]
