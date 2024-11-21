@@ -26,9 +26,9 @@ pub struct Instrument {
 impl Instrument {
     #[must_use]
     pub fn is(info: &InstrumentInfo) -> bool {
-        info.model.as_ref().is_some_and(|model| {
-            model.split_ascii_whitespace().last().is_some_and(is_3700)
-        })
+        info.model
+            .as_ref()
+            .is_some_and(|model| model.split_ascii_whitespace().last().is_some_and(is_3700))
     }
 
     #[must_use]
