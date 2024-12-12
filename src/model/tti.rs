@@ -55,7 +55,7 @@ impl Instrument {
     }
 }
 
-pub(crate) fn is_tti(model: impl AsRef<str>) -> bool {
+fn is_tti(model: impl AsRef<str>) -> bool {
     [
         "2450", "2470", "DMM7510", "2460", "2461", "2461-SYS", "DMM7512", "DMM6500", "DAQ6510",
     ]

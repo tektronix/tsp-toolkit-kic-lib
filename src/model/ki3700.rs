@@ -56,7 +56,7 @@ impl Instrument {
 //Implement device_interface::Interface since it is a subset of instrument::Instrument trait.
 impl instrument::Instrument for Instrument {}
 
-pub(crate) fn is_3700(model: impl AsRef<str>) -> bool {
+fn is_3700(model: impl AsRef<str>) -> bool {
     [
         "3706",
         "3706-SNFP",

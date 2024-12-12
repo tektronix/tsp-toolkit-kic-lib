@@ -56,7 +56,7 @@ impl Instrument {
     }
 }
 
-pub(crate) fn is_versatest(model: impl AsRef<str>) -> bool {
+fn is_versatest(model: impl AsRef<str>) -> bool {
     ["MP5103", "VERSATEST-300", "VERSATEST-600", "TSPop", "TSP"].contains(&model.as_ref())
 }
 
