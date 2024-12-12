@@ -27,9 +27,16 @@ pub struct Instrument {
 impl Instrument {
     #[must_use]
     pub fn is(info: &InstrumentInfo) -> bool {
-        info.model
+        info.model.as_ref().is_some_and(Self::model_is)
+    }
+
+    #[must_use]
+    pub fn model_is(model: impl AsRef<str>) -> bool {
+        model
             .as_ref()
-            .is_some_and(|model| model.split_ascii_whitespace().last().is_some_and(is_2600))
+            .split_ascii_whitespace()
+            .last()
+            .is_some_and(is_2600)
     }
 
     #[must_use]
@@ -50,7 +57,7 @@ impl Instrument {
 //Implement device_interface::Interface since it is a subset of instrument::Instrument trait.
 impl instrument::Instrument for Instrument {}
 
-fn is_2600(model: impl AsRef<str>) -> bool {
+pub fn is_2600(model: impl AsRef<str>) -> bool {
     [
         "2601",
         "2602",

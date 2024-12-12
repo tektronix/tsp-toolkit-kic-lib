@@ -28,7 +28,16 @@ pub struct Instrument {
 impl Instrument {
     #[must_use]
     pub fn is(info: &InstrumentInfo) -> bool {
-        info.model.as_ref().is_some_and(is_tti)
+        info.model.as_ref().is_some_and(Self::model_is)
+    }
+
+    #[must_use]
+    pub fn model_is(model: impl AsRef<str>) -> bool {
+        model
+            .as_ref()
+            .split_ascii_whitespace()
+            .last()
+            .is_some_and(is_tti)
     }
 
     #[must_use]
@@ -46,7 +55,7 @@ impl Instrument {
     }
 }
 
-fn is_tti(model: impl AsRef<str>) -> bool {
+pub(crate) fn is_tti(model: impl AsRef<str>) -> bool {
     [
         "2450", "2470", "DMM7510", "2460", "2461", "2461-SYS", "DMM7512", "DMM6500", "DAQ6510",
     ]

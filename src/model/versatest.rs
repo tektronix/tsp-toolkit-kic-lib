@@ -28,7 +28,16 @@ pub struct Instrument {
 impl Instrument {
     #[must_use]
     pub fn is(info: &InstrumentInfo) -> bool {
-        info.model.as_ref().is_some_and(is_versatest)
+        info.model.as_ref().is_some_and(Self::model_is)
+    }
+
+    #[must_use]
+    pub fn model_is(model: impl AsRef<str>) -> bool {
+        model
+            .as_ref()
+            .split_ascii_whitespace()
+            .last()
+            .is_some_and(is_versatest)
     }
 
     #[must_use]
@@ -47,7 +56,7 @@ impl Instrument {
     }
 }
 
-fn is_versatest(model: impl AsRef<str>) -> bool {
+pub(crate) fn is_versatest(model: impl AsRef<str>) -> bool {
     ["MP5103", "VERSATEST-300", "VERSATEST-600", "TSPop", "TSP"].contains(&model.as_ref())
 }
 

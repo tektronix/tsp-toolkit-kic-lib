@@ -93,6 +93,7 @@ pub enum Protocol {
     },
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Stb {
     Stb(u16),
     NotSupported,
@@ -304,5 +305,66 @@ impl Protocol {
 impl From<Box<dyn Interface>> for Protocol {
     fn from(value: Box<dyn Interface>) -> Self {
         Self::Raw(value)
+    }
+}
+
+#[cfg(test)]
+mod unit {
+    use std::assert_matches::assert_matches;
+
+    use super::Stb;
+
+    #[test]
+    fn stb_test_mav() {
+        let input = 0x0010;
+
+        let actual = Stb::Stb(input).mav();
+
+        assert_matches!(actual, Ok(true));
+    }
+
+    #[test]
+    fn stb_test_esr() {
+        let input = 0x0020;
+
+        let actual = Stb::Stb(input).esr();
+
+        assert_matches!(actual, Ok(true));
+    }
+
+    #[test]
+    fn stb_test_srq() {
+        let input = 0x0040;
+
+        let actual = Stb::Stb(input).srq();
+
+        assert_matches!(actual, Ok(true));
+    }
+
+    #[test]
+    fn stb_test_all() {
+        for i in 0..=u16::MAX {
+            let stb = Stb::Stb(i);
+            //MAV
+            if i & 0x0010 != 0 {
+                assert_matches!(stb.mav(), Ok(true), "mav should be set - stb: {i:0>4x}");
+            } else {
+                assert_matches!(stb.mav(), Ok(false), "mav should be unset - stb: {i:0>4x}");
+            }
+
+            //ESR
+            if i & 0x0020 != 0 {
+                assert_matches!(stb.esr(), Ok(true), "esr should be set - stb: {i:0>4x}");
+            } else {
+                assert_matches!(stb.esr(), Ok(false), "esr should be unset - stb: {i:0>4x}");
+            }
+
+            //SRQ
+            if i & 0x0040 != 0 {
+                assert_matches!(stb.srq(), Ok(true), "srq should be set - stb: {i:0>4x}");
+            } else {
+                assert_matches!(stb.srq(), Ok(false), "srq should be unset - stb: {i:0>4x}");
+            }
+        }
     }
 }
