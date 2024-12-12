@@ -16,6 +16,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.19.0]
+
+### Added
+
+- Added `is_supported` function that takes in a model number
+- Added `model_is` method on `model::**::Instrument` structs
+
 ## [0.18.4]
 
 ### Fixed
@@ -106,7 +113,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Using `read_password` instead of `prompt_password` of rpassword crate (TSP-517)
 
 <!--Version Comparison Links-->
-[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-lib/compare/v0.18.4..HEAD
+[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-lib/compare/v0.19.0..HEAD
+[0.19.0]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.19.0
 [0.18.4]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.18.4
 [0.18.3]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.18.3
 [0.18.2]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.18.2

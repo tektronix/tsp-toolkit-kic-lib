@@ -9,6 +9,14 @@ pub mod ki3700;
 pub mod tti;
 pub mod versatest;
 
+#[must_use]
+pub fn is_supported(model: impl AsRef<str>) -> bool {
+    self::ki2600::Instrument::model_is(&model)
+        || self::ki3700::Instrument::model_is(&model)
+        || self::tti::Instrument::model_is(&model)
+        || self::versatest::Instrument::model_is(&model)
+}
+
 impl TryFrom<Protocol> for Box<dyn Instrument> {
     type Error = InstrumentError;
 
