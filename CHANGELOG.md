@@ -21,7 +21,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Fixed
 
 - Don't call tsp commands in `get-info` because the `*LANG` of the instrument
-  might be set to something besides `TSP`
+  might be set to something besides `TSP` (specifically on TTI)
 
 ## [0.19.0]
 
