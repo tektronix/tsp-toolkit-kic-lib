@@ -1,6 +1,6 @@
 //! Define the trait and datatypes necessary to describe an instrument.
 use minidom::Element;
-use tracing::{instrument, trace};
+use tracing::{debug, instrument, trace};
 
 use crate::{error::Result, InstrumentError};
 use std::{
@@ -10,8 +10,6 @@ use std::{
 };
 
 use crate::interface::connection_addr::ConnectionAddr;
-
-use super::clear_output_queue;
 
 /// The information about an instrument.
 #[allow(clippy::module_name_repetitions)]
@@ -40,11 +38,13 @@ pub struct InstrumentInfo {
 #[allow(clippy::module_name_repetitions)]
 #[instrument(skip(rw))]
 pub fn get_info<T: Read + Write + ?Sized>(rw: &mut T) -> Result<InstrumentInfo> {
+    debug!("Sending abort");
     rw.write_all(b"abort\n")?;
     std::thread::sleep(Duration::from_millis(100));
+    debug!("Sending *CLS");
     rw.write_all(b"*CLS\n")?;
     std::thread::sleep(Duration::from_millis(100));
-    clear_output_queue(rw, 1000, Duration::from_millis(1))?;
+    debug!("Sending *IDN?");
     rw.write_all(b"*IDN?\n")?;
     let mut info: Option<InstrumentInfo> = None;
     for _ in 0..100 {
