@@ -16,6 +16,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Security -- in case of vulnerabilities.
 -->
 
+## [0.19.1]
+
+### Fixed
+
+- Don't call tsp commands in `get-info` because the `*LANG` of the instrument
+  might be set to something besides `TSP`
+
 ## [0.19.0]
 
 ### Added
@@ -113,7 +120,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Using `read_password` instead of `prompt_password` of rpassword crate (TSP-517)
 
 <!--Version Comparison Links-->
-[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-lib/compare/v0.19.0..HEAD
+[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-lib/compare/v0.19.1..HEAD
+[0.19.1]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.19.1
 [0.19.0]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.19.0
 [0.18.4]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.18.4
 [0.18.3]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.18.3

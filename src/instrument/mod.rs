@@ -21,6 +21,7 @@ pub use language::{CmdLanguage, Language};
 pub use login::{Login, State};
 pub use reset::Reset;
 pub use script::Script;
+use tracing::debug;
 
 /// A marker trait that defines the traits any [`Instrument`] needs to have.
 pub trait Instrument:
@@ -29,6 +30,10 @@ pub trait Instrument:
 }
 
 /// Read from a 'rw' until we are sure we have cleared the output queue.
+///
+/// # Warning
+/// This functions calls a TSP command and therefore should not be used before
+/// we know whether the instrument is in TSP mode (only applicable for TTI)
 ///
 /// # Errors
 /// Whatever can errors can occur with [`std::io::Read`], [`std::io::Write`] or
@@ -40,6 +45,7 @@ pub fn clear_output_queue<T: Read + Write + ?Sized>(
 ) -> Result<()> {
     let timestamp = chrono::Utc::now().to_string();
 
+    debug!("Sending print({timestamp})");
     rw.write_all(format!("print(\"{timestamp}\")\n").as_bytes())?;
 
     let mut accumulate = String::new();
