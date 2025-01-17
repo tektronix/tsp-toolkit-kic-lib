@@ -22,6 +22,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 - Fix incorrect upgrade commands for trebuchet
 - Wait for trebuchet download to finish before continuing
+- Stop and start module after loading firmware image
 
 ## [0.19.1]
 
