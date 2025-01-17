@@ -177,7 +177,8 @@ impl Flash for Instrument {
         match clear_output_queue(self, 60 * 10, Duration::from_secs(1)) {
             Ok(()) => {}
             Err(InstrumentError::Other(_)) => return Err(InstrumentError::Other(
-                "Writing image took longer than 10 minutes. Check your connection and try again.".to_string(),
+                "Writing image took longer than 10 minutes. Check your connection and try again."
+                    .to_string(),
             )),
             Err(e) => return Err(e),
         }
@@ -242,7 +243,8 @@ mod unit {
 
     use crate::{
         instrument::{self, authenticate::Authentication, info::Info, Login, Script},
-        interface::{self, NonBlock}, InstrumentError,
+        interface::{self, NonBlock},
+        InstrumentError,
     };
 
     use super::Instrument;
@@ -993,7 +995,6 @@ mod unit {
     //        .in_sequence(&mut seq)
     //        .withf(|buf: &[u8]| buf == b"endflash\n")
     //        .returning(|buf: &[u8]| Ok(buf.len()));
-
 
     //    interface
     //        .expect_write()
