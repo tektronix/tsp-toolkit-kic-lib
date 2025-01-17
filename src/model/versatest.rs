@@ -155,7 +155,6 @@ impl Flash for Instrument {
         image: &[u8],
         firmware_info: Option<u16>,
     ) -> crate::error::Result<()> {
-        self.fw_flash_in_progress = true;
         let mut is_module = false;
         let slot_number: u16 = firmware_info.unwrap_or(0);
         if slot_number > 0 {
@@ -187,8 +186,22 @@ impl Flash for Instrument {
 
         if is_module {
             self.write_all(format!("slot[{slot_number}].firmware.update()\n").as_bytes())?;
+            self.write_all(b"waitcomplete()\n")?;
+            self.write_all(format!("slot.stop({slot_number})\n").as_bytes())?;
+            self.write_all(b"waitcomplete()\n")?;
+            self.write_all(format!("slot.start({slot_number})\n").as_bytes())?;
+            self.write_all(b"waitcomplete()\n")?;
+            match clear_output_queue(self, 60 * 5, Duration::from_secs(1)) {
+                Ok(()) => {}
+                Err(InstrumentError::Other(_)) => return Err(InstrumentError::Other(
+                    "Upgrading module firmware took longer than 5 minutes. Check your hardware and try again."
+                        .to_string(),
+                )),
+                Err(e) => return Err(e),
+            }
         } else {
             //Update Mainframe
+            self.fw_flash_in_progress = true;
             self.write_all(b"firmware.update()\n")?;
         }
 
