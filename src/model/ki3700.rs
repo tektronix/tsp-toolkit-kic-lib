@@ -181,6 +181,7 @@ impl NonBlock for Instrument {
 }
 
 impl Drop for Instrument {
+    #[tracing::instrument(skip(self))]
     fn drop(&mut self) {
         trace!("calling ki3700 drop...");
         let _ = self.reset();
@@ -188,6 +189,7 @@ impl Drop for Instrument {
 }
 
 impl Reset for Instrument {
+    #[tracing::instrument(skip(self))]
     fn reset(&mut self) -> crate::error::Result<()> {
         trace!("calling ki3700 reset...");
         let _ = self.write_all(b"abort\n");

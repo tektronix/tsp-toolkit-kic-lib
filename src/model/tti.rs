@@ -184,7 +184,7 @@ impl Read for Instrument {
 }
 
 impl Write for Instrument {
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, buf))]
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         if String::from_utf8_lossy(buf).contains("login") {
             trace!("writing to instrument: 'login ****'");

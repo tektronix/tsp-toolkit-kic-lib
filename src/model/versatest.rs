@@ -125,7 +125,7 @@ impl Login for Instrument {
 impl Script for Instrument {}
 
 impl Read for Instrument {
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, buf))]
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let b = self.protocol.read(buf)?;
         let ascii = String::from_utf8_lossy(buf);
@@ -138,7 +138,7 @@ impl Read for Instrument {
 }
 
 impl Write for Instrument {
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, buf))]
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         trace!("writing to instrument: '{}'", String::from_utf8_lossy(buf));
         self.protocol.write(buf)
@@ -233,6 +233,7 @@ impl Drop for Instrument {
 }
 
 impl Reset for Instrument {
+    #[tracing::instrument(skip(self))]
     fn reset(&mut self) -> crate::error::Result<()> {
         trace!("calling versatest reset...");
         let _ = self.write_all(b"*RST\n");
