@@ -182,7 +182,7 @@ impl Read for Instrument {
 }
 
 impl Write for Instrument {
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, buf))]
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         if String::from_utf8_lossy(buf).contains("password") {
             trace!("writing to instrument: 'password ****'");
@@ -209,6 +209,7 @@ impl NonBlock for Instrument {
 }
 
 impl Drop for Instrument {
+    #[tracing::instrument(skip(self))]
     fn drop(&mut self) {
         trace!("calling ki2600 drop...");
         let _ = self.reset();
@@ -218,6 +219,7 @@ impl Drop for Instrument {
 }
 
 impl Reset for Instrument {
+    #[tracing::instrument(skip(self))]
     fn reset(&mut self) -> crate::error::Result<()> {
         trace!("Calling ki2600 reset...");
         let _ = self.write_all(b"*RST\n");

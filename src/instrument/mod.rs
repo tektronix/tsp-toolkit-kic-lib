@@ -38,6 +38,7 @@ pub trait Instrument:
 /// # Errors
 /// Whatever can errors can occur with [`std::io::Read`], [`std::io::Write`] or
 /// [`tsp_toolkit_kic_lib::interface::NonBlock`].
+#[tracing::instrument(skip(rw))]
 pub fn clear_output_queue<T: Read + Write + ?Sized>(
     rw: &mut T,
     max_attempts: usize,
