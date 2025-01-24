@@ -24,7 +24,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [0.19.3]
 
 ### Changed
-- Remove logging of buffers for writes
+- Remove logging of buffers for writes/reads
 
 ## [0.19.2]
 
