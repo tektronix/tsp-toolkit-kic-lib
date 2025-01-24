@@ -68,6 +68,8 @@ fn is_3700(model: impl AsRef<str>) -> bool {
         "3706A-NFP",
         "707B",
         "708B",
+        "5880-SRU",
+        "5881-SRU",
     ]
     .contains(&model.as_ref())
 }

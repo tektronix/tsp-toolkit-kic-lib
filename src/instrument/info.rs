@@ -1,6 +1,6 @@
 //! Define the trait and datatypes necessary to describe an instrument.
 use minidom::Element;
-use tracing::{debug, instrument, trace};
+use tracing::{debug, instrument};
 
 use crate::{error::Result, InstrumentError};
 use std::{
@@ -54,7 +54,7 @@ pub fn get_info<T: Read + Write + ?Sized>(rw: &mut T) -> Result<InstrumentInfo> 
         let _ = rw.read(&mut buf)?;
         let first_null = buf.iter().position(|&x| x == b'\0').unwrap_or(buf.len());
         let buf = &buf[..first_null];
-        trace!("Buffer after *IDN?: {}", String::from_utf8_lossy(buf));
+        debug!("Buffer after *IDN?: {}", String::from_utf8_lossy(buf));
         if let Ok(i) = buf.try_into() {
             info = Some(i);
             break;
