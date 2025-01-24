@@ -19,11 +19,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [0.19.4]
 
 ### Fixed
+
 - Fix issue with connecting to 5880-SRU and 5881-SRU
+
 
 ## [0.19.3]
 
 ### Changed
+
 - Remove logging of buffers for writes/reads
 
 ## [0.19.2]
