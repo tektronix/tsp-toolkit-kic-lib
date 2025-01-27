@@ -175,7 +175,7 @@ impl Flash for Instrument {
         // back.
         match clear_output_queue(self, 60 * 10, Duration::from_secs(1)) {
             Ok(()) => {}
-            Err(InstrumentError::Other(_)) => return Err(InstrumentError::Other(
+            Err(InstrumentError::Other(_)) => return Err(InstrumentError::FwUpgradeFailure(
                 "Writing image took longer than 10 minutes. Check your connection and try again."
                     .to_string(),
             )),
@@ -193,7 +193,7 @@ impl Flash for Instrument {
             self.write_all(b"waitcomplete()\n")?;
             match clear_output_queue(self, 60 * 5, Duration::from_secs(1)) {
                 Ok(()) => {}
-                Err(InstrumentError::Other(_)) => return Err(InstrumentError::Other(
+                Err(InstrumentError::Other(_)) => return Err(InstrumentError::FwUpgradeFailure(
                     "Upgrading module firmware took longer than 5 minutes. Check your hardware and try again."
                         .to_string(),
                 )),
@@ -207,7 +207,9 @@ impl Flash for Instrument {
             let _ = self.read(&mut buf)?;
             let validity = String::from_utf8_lossy(&buf);
             if validity.contains("INVALID") {
-                return Err(InstrumentError::Other("Unable to upgrade mainframe: Firmware was invalid".to_string()))
+                return Err(InstrumentError::FwUpgradeFailure(
+                    "Unable to upgrade mainframe: Firmware was invalid".to_string(),
+                ));
             }
         }
 
