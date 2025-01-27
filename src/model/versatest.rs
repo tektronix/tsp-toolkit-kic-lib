@@ -202,7 +202,13 @@ impl Flash for Instrument {
         } else {
             //Update Mainframe
             self.fw_flash_in_progress = true;
-            self.write_all(b"firmware.update()\n")?;
+            self.write_all(b"if firmware.valid == nil or firmware.valid == true then print('VALID') firmware.update() else print('INVALID') end\n")?;
+            let mut buf = vec![0u8; 9];
+            let _ = self.read(&mut buf)?;
+            let validity = String::from_utf8_lossy(&buf);
+            if validity.contains("INVALID") {
+                return Err(InstrumentError::Other("Unable to upgrade mainframe: Firmware was invalid".to_string()))
+            }
         }
 
         Ok(())
