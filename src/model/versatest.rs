@@ -218,7 +218,7 @@ impl Flash for Instrument {
             self.write_all(b"waitcomplete()\n")?;
             self.write_all(format!("slot.start({slot_number})\n").as_bytes())?;
             self.write_all(b"waitcomplete()\n")?;
-            match clear_output_queue(self, 60 * 5, Duration::from_secs(1)) {
+            match clear_output_queue(self, 60 * 10, Duration::from_secs(1)) {
                 Ok(()) => {}
                 Err(InstrumentError::Other(_)) => return Err(InstrumentError::FwUpgradeFailure(
                     "Upgrading module firmware took longer than 5 minutes. Check your hardware and try again."
