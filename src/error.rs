@@ -121,6 +121,9 @@ pub enum InstrumentError {
         source: visa_rs::Error,
     },
 
+    #[error("Instrument upgrade failed: {0}")]
+    FwUpgradeFailure(String),
+
     /// An uncategorized error.
     #[error("{0}")]
     Other(String),
