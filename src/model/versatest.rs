@@ -9,7 +9,7 @@ use crate::{
         authenticate::Authentication,
         clear_output_queue,
         info::{get_info, InstrumentInfo},
-        language, Info, Login, Reset, Script,
+        language, read_until, Info, Login, Reset, Script,
     },
     interface::NonBlock,
     protocol::Protocol,
@@ -182,7 +182,34 @@ impl Flash for Instrument {
             Err(e) => return Err(e),
         }
 
-        //TODO CHECK ERRORS
+        self.write_all(b"if firmware.valid == nil or firmware.valid == true then print('VALID') else print('INVALID') end\n")?;
+        match read_until(
+            self,
+            vec!["VALID".to_string(), "INVALID".to_string()],
+            1000,
+            Duration::from_millis(1),
+        ) {
+            Ok(s) if s == "VALID" => {
+                trace!("Firwmare was valid");
+            }
+            Ok(s) if s == "INVALID" => {
+                return Err(InstrumentError::FwUpgradeFailure(
+                    "Unable to upgrade mainframe: Firmware was invalid".to_string(),
+                ));
+            }
+            Ok(_) => {
+                trace!("Firmware validity superposition detected! 😱");
+                return Err(InstrumentError::FwUpgradeFailure(
+                    "Upgrade status unknown: unable to read firmware validity".to_string(),
+                ));
+            }
+            Err(InstrumentError::Other(s)) if s == String::default() => {
+                return Err(InstrumentError::FwUpgradeFailure(
+                    "Upgrade status unknown: unable to read firmware validity".to_string(),
+                ));
+            }
+            Err(e) => return Err(e),
+        }
 
         if is_module {
             self.write_all(format!("slot[{slot_number}].firmware.update()\n").as_bytes())?;
@@ -202,15 +229,7 @@ impl Flash for Instrument {
         } else {
             //Update Mainframe
             self.fw_flash_in_progress = true;
-            self.write_all(b"if firmware.valid == nil or firmware.valid == true then print('VALID') firmware.update() else print('INVALID') end\n")?;
-            let mut buf = vec![0u8; 9];
-            let _ = self.read(&mut buf)?;
-            let validity = String::from_utf8_lossy(&buf);
-            if validity.contains("INVALID") {
-                return Err(InstrumentError::FwUpgradeFailure(
-                    "Unable to upgrade mainframe: Firmware was invalid".to_string(),
-                ));
-            }
+            self.write_all(b"firmware.update()\n")?;
         }
 
         Ok(())
