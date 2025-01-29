@@ -26,7 +26,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Fixed
 
-- Fix issue with connecting to 5880-SRU and 5881-SRU
+- Fix issue with connecting to some instruments
 
 
 ## [0.19.3]
