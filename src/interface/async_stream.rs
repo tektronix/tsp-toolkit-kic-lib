@@ -232,7 +232,7 @@ impl Write for AsyncStream {
                     "asynchronous connection was not found".to_string(),
                 ));
             }
-        };
+        }
 
         Ok(buf.len())
     }

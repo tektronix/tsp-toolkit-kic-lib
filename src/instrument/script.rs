@@ -21,9 +21,9 @@ where
     ///
     /// # Notes
     /// - The script name will not be validated to ensure that it is compatible with the
-    ///     scripting environment.
+    ///   scripting environment.
     /// - The given script content will only be validated by the instrument, but not
-    ///     the [`write_script`] function.
+    ///   the [`write_script`] function.
     ///
     /// # Errors
     /// Returns an [`InstrumentError`] if any errors occurred.

@@ -1,5 +1,5 @@
 use std::{
-    io::{BufRead, Read, Write},
+    io::{Read, Write},
     time::Duration,
 };
 
@@ -15,7 +15,6 @@ use crate::{
     protocol::Protocol,
     Flash, InstrumentError,
 };
-use bytes::Buf;
 use language::Language;
 use tracing::trace;
 
@@ -162,10 +161,39 @@ impl Flash for Instrument {
         }
 
         self.write_all(b"localnode.prompts=0\n")?;
-        let mut image = image.reader();
+        //let image = image.reader();
         self.write_all(b"flash\n")?;
 
-        self.write_all(image.fill_buf().unwrap())?;
+        // for line in image.lines() {
+        //     self.write_all(format!("{}\n", line.unwrap_or_default()).as_bytes())?;
+        // }
+        // fit as much into a 1000-byte message as possible (For USBTMC)
+        // TODO, this implementation should be moved to the "Protocol" write_all implementation instead
+        let mut start: usize = 0;
+        let step: usize = 1000;
+        let mut end: usize = if start.saturating_add(step) < image.len() {
+            start.saturating_add(step)
+        } else {
+            image.len().saturating_sub(1)
+        };
+        while end < image.len().saturating_sub(1) {
+            //Here we are trusting that a single line will not be more than 1000-bytes long
+            while image[end] != b'\n' && end > start {
+                end = end.saturating_sub(1);
+            }
+            trace!("start: {start}, end: {end}, len: {}", image.len());
+            if start == end {
+                self.write_all(&[image[start]])?;
+            } else {
+                self.write_all(&image[start..=end])?;
+            }
+            start = end.saturating_add(1);
+            end = if start.saturating_add(step) < image.len() {
+                start.saturating_add(step)
+            } else {
+                image.len().saturating_sub(1)
+            };
+        }
 
         self.write_all(b"endflash\n")?;
 
@@ -214,10 +242,10 @@ impl Flash for Instrument {
         if is_module {
             self.write_all(format!("slot[{slot_number}].firmware.update()\n").as_bytes())?;
             self.write_all(b"waitcomplete()\n")?;
-            self.write_all(format!("slot.stop({slot_number})\n").as_bytes())?;
-            self.write_all(b"waitcomplete()\n")?;
-            self.write_all(format!("slot.start({slot_number})\n").as_bytes())?;
-            self.write_all(b"waitcomplete()\n")?;
+            // self.write_all(format!("slot.stop({slot_number})\n").as_bytes())?;
+            // self.write_all(b"waitcomplete()\n")?;
+            // self.write_all(format!("slot.start({slot_number})\n").as_bytes())?;
+            // self.write_all(b"waitcomplete()\n")?;
             match clear_output_queue(self, 60 * 10, Duration::from_secs(1)) {
                 Ok(()) => {}
                 Err(InstrumentError::Other(_)) => return Err(InstrumentError::FwUpgradeFailure(
