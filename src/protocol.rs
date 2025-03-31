@@ -240,7 +240,7 @@ impl Clear for Protocol {
 
             #[cfg(feature = "visa")]
             Self::Visa { instr, .. } => instr.clear()?,
-        };
+        }
 
         Ok(())
     }
