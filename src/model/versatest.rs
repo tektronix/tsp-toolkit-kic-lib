@@ -214,10 +214,6 @@ impl Flash for Instrument {
         if is_module {
             self.write_all(format!("slot[{slot_number}].firmware.update()\n").as_bytes())?;
             self.write_all(b"waitcomplete()\n")?;
-            self.write_all(format!("slot.stop({slot_number})\n").as_bytes())?;
-            self.write_all(b"waitcomplete()\n")?;
-            self.write_all(format!("slot.start({slot_number})\n").as_bytes())?;
-            self.write_all(b"waitcomplete()\n")?;
             match clear_output_queue(self, 60 * 10, Duration::from_secs(1)) {
                 Ok(()) => {}
                 Err(InstrumentError::Other(_)) => return Err(InstrumentError::FwUpgradeFailure(
