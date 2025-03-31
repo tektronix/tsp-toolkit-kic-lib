@@ -240,7 +240,7 @@ impl Clear for Protocol {
 
             #[cfg(feature = "visa")]
             Self::Visa { instr, .. } => instr.clear()?,
-        };
+        }
 
         Ok(())
     }
@@ -284,8 +284,11 @@ impl Protocol {
     #[cfg(feature = "visa")]
     #[tracing::instrument]
     pub fn try_from_visa(visa_string: String) -> Result<Self> {
+        use visa_rs::enums::attribute::{AttrTermcharEn, HasAttribute};
+
         trace!("Getting VISA Resource Manager");
         let rm = DefaultRM::new()?;
+        rm.set_attr(AttrTermcharEn::VI_TRUE)?;
         trace!("Converting given resource string to VisaString");
         let Some(resource_string) = VisaString::from_string(visa_string.clone()) else {
             return Err(InstrumentError::AddressParsingError {
