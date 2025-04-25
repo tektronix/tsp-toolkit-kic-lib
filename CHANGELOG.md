@@ -29,6 +29,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 - Issues with firmware updates over USBTMC on some instruments
 
+
 ## [0.19.5]
 
 ### Changed
