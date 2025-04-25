@@ -280,12 +280,9 @@ impl Write for Protocol {
         let mut start: usize = 0;
 
         let step: usize = match self {
-            Self::Raw(interface) => {
-                let _ = interface.set_nonblocking(false);
-                buf.len()
-            }
-            Self::Visa { .. } => 4500,//TODO Need a way to make this 4500 for Treb and 1000 for
-            //everything else.
+            Self::Raw(_) => buf.len(),
+            Self::Visa { .. } => 4500, //TODO Need a way to make this 4500 for Treb and 1000 for
+                                       //everything else.
         };
         let mut end: usize = if start.saturating_add(step) < buf.len() {
             start.saturating_add(step)
@@ -339,13 +336,11 @@ impl Write for Protocol {
             self.write(&buf[start..=end])?;
         }
         if let Some(p) = pb {
-            p.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] {msg}").unwrap());
+            p.set_style(
+                ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] {msg}").unwrap(),
+            );
             p.finish_with_message("Loading firmware complete");
             //eprintln!("Loading firmware complete");
-        }
-
-        if let Self::Raw(interface) = self {
-            let _ = interface.set_nonblocking(true);
         }
 
         Ok(())
