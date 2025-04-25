@@ -21,7 +21,6 @@ visa-rs = { version = "0.6.2", optional = true }
 indicatif = "0.17.11"
 
 [features]
-default = ["visa"]
 visa = ["dep:visa-rs"]
 
 [dev-dependencies]
