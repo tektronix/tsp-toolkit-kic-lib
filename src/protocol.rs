@@ -12,8 +12,10 @@ use std::path::PathBuf;
 
 use crate::{error::Result, instrument::Info, InstrumentError, Interface};
 
+#[allow(unused_imports)] // ProgressState is only used in the 'visa' feature
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
-#[cfg(feature = "visa")]
+
+#[allow(unused_imports)] // warn is only used in 'visa' feature
 use tracing::{trace, warn};
 
 #[cfg(feature = "visa")]
@@ -281,6 +283,8 @@ impl Write for Protocol {
 
         let step: usize = match self {
             Self::Raw(_) => buf.len(),
+
+            #[cfg(feature = "visa")]
             Self::Visa { .. } => 4500, //TODO Need a way to make this 4500 for Treb and 1000 for
                                        //everything else.
         };
@@ -289,9 +293,10 @@ impl Write for Protocol {
         } else {
             buf.len().saturating_sub(1)
         };
-        let pb = if buf.len() > 100_000 {
+        let pb: Option<ProgressBar> = if buf.len() > 100_000 {
             match self {
                 Self::Raw(_) => None,
+                #[cfg(feature = "visa")]
                 Self::Visa { .. } => {
                     // Only make progress bar for VISA connections and for messages > 100_000 bytes
                     let pb = ProgressBar::new(buf.len().try_into().unwrap_or_default());
