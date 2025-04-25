@@ -195,6 +195,10 @@ impl Write for Instrument {
     fn flush(&mut self) -> std::io::Result<()> {
         self.protocol.flush()
     }
+
+    fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
+        self.protocol.write_all(buf)
+    }
 }
 
 impl NonBlock for Instrument {

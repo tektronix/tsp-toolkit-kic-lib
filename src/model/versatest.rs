@@ -15,6 +15,7 @@ use crate::{
     protocol::Protocol,
     Flash, InstrumentError,
 };
+use indicatif::{ProgressBar, ProgressStyle};
 use language::Language;
 use tracing::trace;
 
@@ -146,6 +147,10 @@ impl Write for Instrument {
     fn flush(&mut self) -> std::io::Result<()> {
         self.protocol.flush()
     }
+
+    fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
+        self.protocol.write_all(buf)
+    }
 }
 
 impl Flash for Instrument {
@@ -160,42 +165,51 @@ impl Flash for Instrument {
             is_module = true;
         }
 
+        let mut spinner = if let Protocol::Raw(_) = self.protocol {
+            let pb = ProgressBar::new(1);
+            #[allow(clippy::literal_string_with_formatting_args)]
+            // This is a template for ProgressStyle that requires this syntax
+            pb.set_style(
+                ProgressStyle::with_template(" {spinner:.green} [{elapsed_precise}] {msg}")
+                    .unwrap(),
+            );
+            pb.enable_steady_tick(Duration::from_millis(100));
+            pb.set_message("Loading Firmware...");
+
+            Some(pb)
+        } else {
+            None
+        };
+
         self.write_all(b"localnode.prompts=0\n")?;
         //let image = image.reader();
+        //let start_time = Instant::now();
         self.write_all(b"flash\n")?;
 
-        // for line in image.lines() {
-        //     self.write_all(format!("{}\n", line.unwrap_or_default()).as_bytes())?;
-        // }
-        // fit as much into a 1000-byte message as possible (For USBTMC)
-        // TODO, this implementation should be moved to the "Protocol" write_all implementation instead
-        let mut start: usize = 0;
-        let step: usize = 1000;
-        let mut end: usize = if start.saturating_add(step) < image.len() {
-            start.saturating_add(step)
-        } else {
-            image.len().saturating_sub(1)
-        };
-        while end < image.len().saturating_sub(1) {
-            //Here we are trusting that a single line will not be more than 1000-bytes long
-            while image[end] != b'\n' && end > start {
-                end = end.saturating_sub(1);
-            }
-            trace!("start: {start}, end: {end}, len: {}", image.len());
-            if start == end {
-                self.write_all(&[image[start]])?;
-            } else {
-                self.write_all(&image[start..=end])?;
-            }
-            start = end.saturating_add(1);
-            end = if start.saturating_add(step) < image.len() {
-                start.saturating_add(step)
-            } else {
-                image.len().saturating_sub(1)
-            };
-        }
+        self.write_all(image)?;
 
         self.write_all(b"endflash\n")?;
+
+        if spinner.is_none() {
+            let pb = ProgressBar::new(1);
+            #[allow(clippy::literal_string_with_formatting_args)]
+            // This is a template for ProgressStyle that requires this syntax
+            pb.set_style(
+                ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] {msg}").unwrap(),
+            );
+            pb.enable_steady_tick(Duration::from_millis(100));
+            spinner = Some(pb);
+        }
+
+        if let Some(pb) = &spinner {
+            pb.set_message("Mainframe processing firmware...");
+        }
+
+        //let end_time = Instant::now();
+        //let duration = end_time.duration_since(start_time);
+        //let rate = std::convert::Into::<f64>::into(
+        //    TryInto::<u32>::try_into(image.len()).unwrap_or_default(),
+        //) / duration.as_secs_f64();
 
         // give it up to 10 minutes.
         // This call will write a timestamp to be printed by the instrument
@@ -240,12 +254,14 @@ impl Flash for Instrument {
         }
 
         if is_module {
+            if let Some(pb) = &spinner {
+                pb.set_message(
+                    "Firmware file transferred successfully. Upgrade running on instrument.",
+                );
+            }
             self.write_all(format!("slot[{slot_number}].firmware.update()\n").as_bytes())?;
             self.write_all(b"waitcomplete()\n")?;
-            // self.write_all(format!("slot.stop({slot_number})\n").as_bytes())?;
-            // self.write_all(b"waitcomplete()\n")?;
-            // self.write_all(format!("slot.start({slot_number})\n").as_bytes())?;
-            // self.write_all(b"waitcomplete()\n")?;
+
             match clear_output_queue(self, 60 * 10, Duration::from_secs(1)) {
                 Ok(()) => {}
                 Err(InstrumentError::Other(_)) => return Err(InstrumentError::FwUpgradeFailure(
@@ -254,10 +270,18 @@ impl Flash for Instrument {
                 )),
                 Err(e) => return Err(e),
             }
+            if let Some(pb) = spinner {
+                pb.finish_with_message("Module firmware upgrade complete.");
+            }
         } else {
             //Update Mainframe
             self.fw_flash_in_progress = true;
             self.write_all(b"firmware.update()\n")?;
+            if let Some(pb) = spinner {
+                pb.finish_with_message(
+                    "Firmware file transferred successfully. Upgrade running on instrument.",
+                );
+            }
         }
 
         Ok(())

@@ -18,6 +18,7 @@ chrono = "0.4"
 minidom = "0.15"
 reqwest = { version = "0.12", features = ["blocking"] }
 visa-rs = { version = "0.6.2", optional = true }
+indicatif = "0.17.11"
 
 [features]
 default = ["visa"]
