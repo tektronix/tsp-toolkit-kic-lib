@@ -17,8 +17,17 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 -->
 ## [0.19.6]
 
+### Added
+
+- Progress indicators for very large scripts and firmware files
+
 ### Changed
+
 - No longer need to call `slot.stop` and `slot.start` since that is done by firmware now
+
+### Fixed
+
+- Issues with firmware updates over USBTMC on some instruments
 
 ## [0.19.5]
 

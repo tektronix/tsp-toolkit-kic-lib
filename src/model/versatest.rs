@@ -1,5 +1,5 @@
 use std::{
-    io::{BufRead, Read, Write},
+    io::{Read, Write},
     time::Duration,
 };
 
@@ -15,7 +15,7 @@ use crate::{
     protocol::Protocol,
     Flash, InstrumentError,
 };
-use bytes::Buf;
+use indicatif::{ProgressBar, ProgressStyle};
 use language::Language;
 use tracing::trace;
 
@@ -147,6 +147,10 @@ impl Write for Instrument {
     fn flush(&mut self) -> std::io::Result<()> {
         self.protocol.flush()
     }
+
+    fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
+        self.protocol.write_all(buf)
+    }
 }
 
 impl Flash for Instrument {
@@ -161,13 +165,53 @@ impl Flash for Instrument {
             is_module = true;
         }
 
+        #[allow(irrefutable_let_patterns)] //This is marked as irrefutable when building without
+        //visa
+        let mut spinner = if let Protocol::Raw(_) = self.protocol {
+            let pb = ProgressBar::new(1);
+            #[allow(clippy::literal_string_with_formatting_args)]
+            // This is a template for ProgressStyle that requires this syntax
+            pb.set_style(
+                ProgressStyle::with_template(" {spinner:.green} [{elapsed_precise}] {msg}")
+                    .unwrap(),
+            );
+            pb.enable_steady_tick(Duration::from_millis(100));
+            pb.set_message("Loading Firmware...");
+
+            Some(pb)
+        } else {
+            None
+        };
+
         self.write_all(b"localnode.prompts=0\n")?;
-        let mut image = image.reader();
+        //let image = image.reader();
+        //let start_time = Instant::now();
         self.write_all(b"flash\n")?;
 
-        self.write_all(image.fill_buf().unwrap())?;
+        self.write_all(image)?;
 
         self.write_all(b"endflash\n")?;
+
+        if spinner.is_none() {
+            let pb = ProgressBar::new(1);
+            #[allow(clippy::literal_string_with_formatting_args)]
+            // This is a template for ProgressStyle that requires this syntax
+            pb.set_style(
+                ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] {msg}").unwrap(),
+            );
+            pb.enable_steady_tick(Duration::from_millis(100));
+            spinner = Some(pb);
+        }
+
+        if let Some(pb) = &spinner {
+            pb.set_message("Mainframe processing firmware...");
+        }
+
+        //let end_time = Instant::now();
+        //let duration = end_time.duration_since(start_time);
+        //let rate = std::convert::Into::<f64>::into(
+        //    TryInto::<u32>::try_into(image.len()).unwrap_or_default(),
+        //) / duration.as_secs_f64();
 
         // give it up to 10 minutes.
         // This call will write a timestamp to be printed by the instrument
@@ -212,8 +256,14 @@ impl Flash for Instrument {
         }
 
         if is_module {
+            if let Some(pb) = &spinner {
+                pb.set_message(
+                    "Firmware file transferred successfully. Upgrade running on instrument.",
+                );
+            }
             self.write_all(format!("slot[{slot_number}].firmware.update()\n").as_bytes())?;
             self.write_all(b"waitcomplete()\n")?;
+
             match clear_output_queue(self, 60 * 10, Duration::from_secs(1)) {
                 Ok(()) => {}
                 Err(InstrumentError::Other(_)) => return Err(InstrumentError::FwUpgradeFailure(
@@ -222,10 +272,18 @@ impl Flash for Instrument {
                 )),
                 Err(e) => return Err(e),
             }
+            if let Some(pb) = spinner {
+                pb.finish_with_message("Module firmware upgrade complete.");
+            }
         } else {
             //Update Mainframe
             self.fw_flash_in_progress = true;
             self.write_all(b"firmware.update()\n")?;
+            if let Some(pb) = spinner {
+                pb.finish_with_message(
+                    "Firmware file transferred successfully. Upgrade running on instrument.",
+                );
+            }
         }
 
         Ok(())
