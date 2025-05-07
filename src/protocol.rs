@@ -314,7 +314,7 @@ impl Write for Protocol {
             //Here we are trusting that a single line will not be more than 1000-bytes long
             let mut last_newline = end;
             // if the file is NOT a ZIP file, look for lines, otherwise, just obey chunking
-            if &buf[0..4] != [0x50, 0x4B, 0x03, 0x04] {
+            if buf[0..4] != [0x50, 0x4B, 0x03, 0x04] {
                 while buf[last_newline] != b'\n' && last_newline > start {
                     last_newline = last_newline.saturating_sub(1);
                 }
