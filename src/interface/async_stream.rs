@@ -187,7 +187,10 @@ impl Read for AsyncStream {
                 Err(e) => match e {
                     TryRecvError::Empty => Vec::default(),
                     TryRecvError::Disconnected => {
-                        return Err(error);
+                        return Err(std::io::Error::new(
+                            ErrorKind::ConnectionReset,
+                            "Connection to instrument has been reset.".to_string(),
+                        ))
                     }
                 },
             }

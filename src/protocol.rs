@@ -313,8 +313,11 @@ impl Write for Protocol {
         while end < buf.len().saturating_sub(1) {
             //Here we are trusting that a single line will not be more than 1000-bytes long
             let mut last_newline = end;
-            while buf[last_newline] != b'\n' && last_newline > start {
-                last_newline = last_newline.saturating_sub(1);
+            // if the file is NOT a ZIP file, look for lines, otherwise, just obey chunking
+            if buf[0..4] != [0x50, 0x4B, 0x03, 0x04] {
+                while buf[last_newline] != b'\n' && last_newline > start {
+                    last_newline = last_newline.saturating_sub(1);
+                }
             }
             trace!("start: {start}, end: {end}, len: {}", buf.len());
             if start != last_newline {

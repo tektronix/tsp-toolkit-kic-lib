@@ -4,6 +4,7 @@ use std::{
 };
 
 use bytes::Buf;
+use indicatif::{ProgressBar, ProgressStyle};
 use language::{CmdLanguage, Language};
 use tracing::trace;
 
@@ -157,6 +158,23 @@ impl Script for Instrument {}
 
 impl Flash for Instrument {
     fn flash_firmware(&mut self, image: &[u8], _: Option<u16>) -> crate::error::Result<()> {
+        #[allow(irrefutable_let_patterns)] //This is marked as irrefutable when building without
+        //visa
+        let spinner = if let Protocol::Raw(_) = self.protocol {
+            let pb = ProgressBar::new(1);
+            #[allow(clippy::literal_string_with_formatting_args)]
+            // This is a template for ProgressStyle that requires this syntax
+            pb.set_style(
+                ProgressStyle::with_template(" {spinner:.green} [{elapsed_precise}] {msg}")
+                    .unwrap(),
+            );
+            pb.enable_steady_tick(Duration::from_millis(100));
+            pb.set_message("Loading Firmware...");
+
+            Some(pb)
+        } else {
+            None
+        };
         let mut image = image.reader();
 
         self.write_all(b"localnode.prompts=localnode.DISABLE\n")?;
@@ -166,6 +184,14 @@ impl Flash for Instrument {
         self.write_all(image.fill_buf().unwrap())?;
 
         self.write_all(b"endflash\n")?;
+
+        if let Some(pb) = spinner {
+            pb.finish_with_message(
+                "Firmware file transferred successfully. Upgrade running on instrument.",
+            );
+        } else {
+            eprintln!("Firmware file transferred successfully. Upgrade running on instrument.");
+        }
         Ok(())
     }
 }
@@ -196,6 +222,10 @@ impl Write for Instrument {
 
     fn flush(&mut self) -> std::io::Result<()> {
         self.protocol.flush()
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
+        self.protocol.write_all(buf)
     }
 }
 
