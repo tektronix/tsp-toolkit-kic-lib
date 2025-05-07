@@ -145,7 +145,6 @@ impl Flash for Instrument {
         self.write_all(b"localnode.prompts = 0\n")?;
         self.write_all(b"prevflash\n")?;
 
-
         #[allow(irrefutable_let_patterns)] //This is marked as irrefutable when building without
         //visa
         let spinner = if let Protocol::Raw(_) = self.protocol {
