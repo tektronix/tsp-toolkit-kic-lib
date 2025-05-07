@@ -22,6 +22,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Fixed issue with missing progress indicators on TTI, 3706, and 2600 instruments
 
 
+
 ## [0.19.6]
 
 ### Added
