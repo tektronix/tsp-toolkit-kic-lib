@@ -9,6 +9,8 @@ use std::{
     time::Duration,
 };
 
+use tracing::error;
+
 use crate::{
     error::{InstrumentError, Result},
     instrument::{
@@ -147,6 +149,11 @@ impl TryFrom<Arc<dyn Interface + Send + Sync>> for AsyncStream {
                 }
                 let buf = &mut [0u8; 512];
                 if let Ok(size) = Arc::get_mut(&mut socket).unwrap().read(buf) {
+                    if size == 0 {
+                        error!("Connection closed: read 0 bytes");
+                        return Err(std::io::Error::new(ErrorKind::ConnectionReset, "Connection to instrument closed".to_string()).into());
+                    }
+
                     let buf = &buf[..size];
                     // This `send()` sends this to a receiver that will be activated next time a self.read() is called.
                     if size > 0 && write_out.send(buf.to_vec()).is_err() {
