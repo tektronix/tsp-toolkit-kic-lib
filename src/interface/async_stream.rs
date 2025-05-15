@@ -151,7 +151,11 @@ impl TryFrom<Arc<dyn Interface + Send + Sync>> for AsyncStream {
                 if let Ok(size) = Arc::get_mut(&mut socket).unwrap().read(buf) {
                     if size == 0 {
                         error!("Connection closed: read 0 bytes");
-                        return Err(std::io::Error::new(ErrorKind::ConnectionReset, "Connection to instrument closed".to_string()).into());
+                        return Err(std::io::Error::new(
+                            ErrorKind::ConnectionReset,
+                            "Connection to instrument closed".to_string(),
+                        )
+                        .into());
                     }
 
                     let buf = &buf[..size];
