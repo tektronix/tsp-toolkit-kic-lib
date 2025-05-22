@@ -1,1 +1,1 @@
-# Keithley Instrument Communication Library
+# Tektronix TSP Communication Library
