@@ -104,10 +104,7 @@ impl TryFrom<Arc<dyn Interface + Send + Sync>> for AsyncStream {
                         let chunk_size = 1024;
                         let mut start = 0;
                         while start < msg.len() {
-                            let end = std::cmp::min(
-                                start.checked_add(chunk_size).unwrap_or(usize::MAX),
-                                msg.len(),
-                            );
+                            let end = std::cmp::min(start.saturating_add(chunk_size), msg.len());
                             let chunk = &msg[start..end];
                             let mut bytes_sent = 0;
                             loop {
@@ -122,8 +119,7 @@ impl TryFrom<Arc<dyn Interface + Send + Sync>> for AsyncStream {
                                     }
                                     Ok(n) => {
                                         // Successfully sent some data
-                                        bytes_sent =
-                                            bytes_sent.checked_add(n).unwrap_or(usize::MAX);
+                                        bytes_sent = bytes_sent.saturating_add(n);
                                     }
                                     Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
                                         // Non-blocking write would block

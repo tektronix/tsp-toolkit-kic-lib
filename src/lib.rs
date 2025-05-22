@@ -3,7 +3,7 @@
 
 //! The TSP Instrument crate defines the necessary components to enable communication
 //! with an instrument at various levels of abstraction. The aim of the library is to
-//! interact correctly, efficiently and reliably with Keithley instruments via multiple
+//! interact correctly, efficiently and reliably with TSP-enabled instruments via multiple
 //! connection interfaces. Right now LAN and USBTMC are implemented, and VISA is
 //! planned
 
