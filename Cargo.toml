@@ -1,8 +1,8 @@
 [package]
 name = "tsp-toolkit-kic-lib"
-description = "A library specifically enabling communication to the Keithley product-line of instruments"
-version = "0.19.8"
-authors = ["Keithley Instruments, LLC"]
+description = "A library specifically enabling communication to Tektronix and Keithley, TSP-enabled instruments"
+version = "0.19.9"
+authors = ["Tektronix, Inc."]
 edition = "2021"
 repository = "https://github.com/tektronix/tsp-toolkit-kic-lib"
 
