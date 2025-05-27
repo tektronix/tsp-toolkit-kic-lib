@@ -15,6 +15,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Fixed -- for any bug fixes.
     Security -- in case of vulnerabilities.
 -->
+## [0.19.9]
+
+### Changed
+
+- Update branding from Keithley Instruments to Tektronix
+
 ## [0.19.8]
 
 ### Fixed
@@ -174,7 +180,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Using `read_password` instead of `prompt_password` of rpassword crate (TSP-517)
 
 <!--Version Comparison Links-->
-[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-lib/compare/v0.19.8..HEAD
+[Unreleased]: https://github.com/tektronix/tsp-toolkit-kic-lib/compare/v0.19.9..HEAD
+[0.19.9]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.19.9
 [0.19.8]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.19.8
 [0.19.7]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.19.7
 [0.19.6]: https://github.com/tektronix/tsp-toolkit-kic-lib/releases/tag/v0.19.6
