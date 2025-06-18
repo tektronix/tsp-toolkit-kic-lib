@@ -1,5 +1,6 @@
 //! Trait definitions that need to be satisfied for any instrument.
 
+pub mod abort;
 pub mod authenticate;
 pub mod firmware;
 pub mod info;
@@ -15,6 +16,7 @@ use std::{
 
 use crate::interface::NonBlock;
 use crate::{error::Result, InstrumentError};
+pub use abort::Abort;
 pub use firmware::Flash;
 pub use info::Info;
 pub use language::{CmdLanguage, Language};
