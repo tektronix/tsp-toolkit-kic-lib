@@ -15,6 +15,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Fixed -- for any bug fixes.
     Security -- in case of vulnerabilities.
 -->
+## [0.19.10]
+
+### Added
+
+- .abort command to abort all current jobs on the instrument
+
 ## [0.19.9]
 
 ### Changed

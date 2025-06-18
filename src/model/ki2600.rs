@@ -12,7 +12,7 @@ use crate::{
         self,
         authenticate::Authentication,
         info::{get_info, InstrumentInfo},
-        language, Info, Login, Reset, Script,
+        language, Abort, Info, Login, Reset, Script,
     },
     interface::NonBlock,
     protocol::Protocol,
@@ -258,6 +258,17 @@ impl Reset for Instrument {
         Ok(())
     }
 }
+
+impl Abort for Instrument {
+    #[tracing::instrument(skip(self))]
+    fn abort(&mut self) -> crate::error::Result<()> {
+        trace!("Calling ki2600 abort...");
+        let _ = self.write_all(b"abort\n");
+        std::thread::sleep(Duration::from_millis(100));
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod unit {
     use std::{
