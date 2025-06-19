@@ -27,7 +27,7 @@ use tracing::debug;
 
 /// A marker trait that defines the traits any [`Instrument`] needs to have.
 pub trait Instrument:
-    Flash + Info + Language + Login + Script + Read + Write + NonBlock + Reset
+    Flash + Info + Language + Login + Script + Read + Write + NonBlock + Reset + Abort
 {
 }
 
