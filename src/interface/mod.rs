@@ -14,7 +14,7 @@ pub mod async_stream;
 pub mod connection_addr;
 
 /// Defines a marker trait that we will implement on each device interface
-pub trait Interface: NonBlock + Read + Write + Info {}
+pub trait Interface: NonBlock + Read + Write {}
 
 /// This device can be set to be non-blocking. This is a requirement of an Interface
 pub trait NonBlock {

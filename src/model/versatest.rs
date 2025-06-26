@@ -11,7 +11,8 @@ use crate::{
         info::{get_info, InstrumentInfo},
         language, read_until, Info, Login, Reset, Script,
     },
-    interface::NonBlock,
+    interface::{connection_addr::ConnectionInfo, NonBlock},
+    model::Model,
     protocol::Protocol,
     Flash, InstrumentError,
 };
@@ -28,17 +29,37 @@ pub struct Instrument {
 
 impl Instrument {
     #[must_use]
-    pub fn is(info: &InstrumentInfo) -> bool {
-        info.model.as_ref().is_some_and(Self::model_is)
+    pub const fn is(info: &InstrumentInfo) -> bool {
+        info.model.is_mp()
     }
 
     #[must_use]
     pub fn model_is(model: impl AsRef<str>) -> bool {
-        model
-            .as_ref()
-            .split_ascii_whitespace()
-            .last()
-            .is_some_and(is_versatest)
+        let Ok(model) = model.as_ref().parse::<Model>() else {
+            return false;
+        };
+        model.is_mp()
+    }
+
+    /// Connect to an instrument with the given connection information.
+    ///
+    /// # Errors
+    /// There can be issues in creating the protocol from the given [`ConnectionInfo`].
+    /// There can also be issues in getting the instrument information using
+    /// [`ConnectionInfo::get_info()`].
+    pub fn connect(
+        conn: &ConnectionInfo,
+        auth: Box<dyn Authentication>,
+    ) -> Result<Self, InstrumentError> {
+        let protocol = Protocol::connect(conn)?;
+        let info = conn.get_info()?;
+
+        Ok(Self {
+            info: Some(info),
+            protocol,
+            auth,
+            fw_flash_in_progress: false,
+        })
     }
 
     #[must_use]
@@ -55,10 +76,6 @@ impl Instrument {
         self.info = Some(info);
         self
     }
-}
-
-fn is_versatest(model: impl AsRef<str>) -> bool {
-    ["MP5103", "VERSATEST-300", "VERSATEST-600", "TSPop", "TSP"].contains(&model.as_ref())
 }
 
 //Implement device_interface::Interface since it is a subset of instrument::Instrument trait.
@@ -229,7 +246,7 @@ impl Flash for Instrument {
         self.write_all(b"if firmware.valid == nil or firmware.valid == true then print('VALID') else print('INVALID') end\n")?;
         match read_until(
             self,
-            vec!["VALID".to_string(), "INVALID".to_string()],
+            &["VALID".to_string(), "INVALID".to_string()],
             1000,
             Duration::from_millis(1),
         ) {
@@ -327,7 +344,7 @@ impl Reset for Instrument {
 
 #[cfg(test)]
 mod unit {
-    use crate::protocol;
+    use crate::protocol::{self, raw::Raw};
     use std::{
         assert_matches::assert_matches,
         io::{BufRead, Read, Write},
@@ -414,7 +431,7 @@ mod unit {
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
         let mut instrument: Instrument =
-            Instrument::new(protocol::Protocol::Raw(Box::new(interface)), Box::new(auth));
+            Instrument::new(protocol::Protocol::Raw(Raw::new(interface)), Box::new(auth));
 
         assert_matches!(instrument.check_login(), Ok(instrument::State::NotNeeded));
 
@@ -551,7 +568,7 @@ mod unit {
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         let mut instrument: Instrument =
-            Instrument::new(protocol::Protocol::Raw(Box::new(interface)), Box::new(auth));
+            Instrument::new(protocol::Protocol::Raw(Raw::new(interface)), Box::new(auth));
 
         assert_matches!(instrument.check_login(), Ok(instrument::State::Needed));
 
@@ -689,7 +706,7 @@ mod unit {
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         let mut instrument: Instrument =
-            Instrument::new(protocol::Protocol::Raw(Box::new(interface)), Box::new(auth));
+            Instrument::new(protocol::Protocol::Raw(Raw::new(interface)), Box::new(auth));
 
         assert_matches!(instrument.check_login(), Ok(instrument::State::Needed));
 
@@ -816,7 +833,7 @@ mod unit {
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         let mut instrument: Instrument =
-            Instrument::new(protocol::Protocol::Raw(Box::new(interface)), Box::new(auth));
+            Instrument::new(protocol::Protocol::Raw(Raw::new(interface)), Box::new(auth));
 
         instrument
             .write_script(b"test_script", &b"line1\nline2\nline3"[..], false, false)
@@ -890,7 +907,7 @@ mod unit {
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         let mut instrument: Instrument =
-            Instrument::new(protocol::Protocol::Raw(Box::new(interface)), Box::new(auth));
+            Instrument::new(protocol::Protocol::Raw(Raw::new(interface)), Box::new(auth));
 
         instrument
             .write_script(b"test_script", &b"line1\nline2\nline3"[..], false, true)
@@ -964,7 +981,7 @@ mod unit {
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         let mut instrument: Instrument =
-            Instrument::new(protocol::Protocol::Raw(Box::new(interface)), Box::new(auth));
+            Instrument::new(protocol::Protocol::Raw(Raw::new(interface)), Box::new(auth));
 
         instrument
             .write_script(b"test_script", &b"line1\nline2\nline3"[..], true, false)
@@ -1045,7 +1062,7 @@ mod unit {
             .withf(|buf: &[u8]| buf == b"abort\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
         let mut instrument: Instrument =
-            Instrument::new(protocol::Protocol::Raw(Box::new(interface)), Box::new(auth));
+            Instrument::new(protocol::Protocol::Raw(Raw::new(interface)), Box::new(auth));
 
         instrument
             .write_script(b"test_script", &b"line1\nline2\nline3"[..], true, true)

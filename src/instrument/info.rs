@@ -2,30 +2,29 @@
 use minidom::Element;
 use tracing::{debug, instrument};
 
-use crate::{error::Result, InstrumentError};
+use crate::{
+    error::Result,
+    model::{Model, Vendor},
+    InstrumentError,
+};
 use std::{
     fmt::Display,
     io::{Read, Write},
     time::Duration,
 };
 
-use crate::interface::connection_addr::ConnectionAddr;
-
 /// The information about an instrument.
 #[allow(clippy::module_name_repetitions)]
 #[derive(serde::Serialize, Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct InstrumentInfo {
     /// The human-readable name of the vendor that makes the instrument
-    pub vendor: Option<String>,
+    pub vendor: Vendor,
     /// The model of the instrument
-    pub model: Option<String>,
+    pub model: Model,
     /// The serial number of the instrument
-    pub serial_number: Option<String>,
+    pub serial_number: String,
     /// The firmware revision of the instrument.
     pub firmware_rev: Option<String>,
-    /// The [`ConnectionAddr`] of the instrument.
-    #[serde(skip)]
-    pub address: Option<ConnectionAddr>,
 }
 
 /// Get the [`InstrumentInfo`] from the given object that implements [`Read`] and
@@ -103,24 +102,37 @@ impl TryFrom<&[u8]> for InstrumentInfo {
                     let (vendor, model, serial_number, firmware_rev) = (
                         Some(String::from_utf8_lossy(v).to_string()),
                         String::from_utf8_lossy(m)
+                            .to_uppercase()
                             .split("MODEL ")
                             .last()
                             .map(std::string::ToString::to_string),
                         Some(String::from_utf8_lossy(s).to_string()),
                         Some(fw_rev),
                     );
-                    if model.is_none() {
+
+                    let Some(vendor) = vendor else {
+                        return Err(InstrumentError::InformationRetrievalError {
+                            details: "unable to parse vendor".to_string(),
+                        });
+                    };
+
+                    let Some(model) = model else {
                         return Err(InstrumentError::InformationRetrievalError {
                             details: "unable to parse model".to_string(),
                         });
-                    }
+                    };
+
+                    let Some(serial_number) = serial_number else {
+                        return Err(InstrumentError::InformationRetrievalError {
+                            details: "unable to parse serial number".to_string(),
+                        });
+                    };
 
                     return Ok(Self {
-                        vendor,
-                        model,
+                        vendor: vendor.parse::<Vendor>()?,
+                        model: model.parse::<Model>()?,
                         serial_number,
                         firmware_rev,
-                        address: None,
                     });
                 }
                 _ => {
@@ -143,49 +155,39 @@ impl TryFrom<&String> for InstrumentInfo {
         const DEVICE_NS: &str = "http://www.lxistandard.org/InstrumentIdentification/1.0";
         if let Ok(root) = xml_data.parse::<Element>() {
             if root.is("LXIDevice", DEVICE_NS) {
-                let mut manufacturer = None;
-                let mut model_num = None;
-                let mut serial_num = None;
-                let mut firmware_revision = None;
-
                 let manufacturer_op = root.get_child("Manufacturer", DEVICE_NS);
                 let model_op = root.get_child("Model", DEVICE_NS);
                 let serial_number_op = root.get_child("SerialNumber", DEVICE_NS);
                 let firmware_revision_op = root.get_child("FirmwareRevision", DEVICE_NS);
 
-                if model_op.is_none() {
+                let Some(vendor) = manufacturer_op else {
                     return Err(InstrumentError::InformationRetrievalError {
-                        details: "unable to read model".to_string(),
+                        details: "unable to parse vendor".to_string(),
                     });
-                }
+                };
 
-                if let Some(inst_manufact) = manufacturer_op {
-                    manufacturer = Some(inst_manufact.text());
-                }
+                let Some(model) = model_op else {
+                    return Err(InstrumentError::InformationRetrievalError {
+                        details: "unable to parse model".to_string(),
+                    });
+                };
 
-                if let Some(inst_model) = model_op {
-                    model_num = Some(inst_model.text());
-                }
-
-                if let Some(inst_serial_number) = serial_number_op {
-                    serial_num = Some(inst_serial_number.text());
-                }
-
-                if let Some(inst_firmware_rev) = firmware_revision_op {
-                    firmware_revision = Some(inst_firmware_rev.text());
-                }
+                let Some(serial_number) = serial_number_op else {
+                    return Err(InstrumentError::InformationRetrievalError {
+                        details: "unable to parse serial number".to_string(),
+                    });
+                };
 
                 return Ok(Self {
-                    vendor: manufacturer,
-                    model: model_num,
-                    serial_number: serial_num,
-                    firmware_rev: firmware_revision,
-                    address: None,
+                    vendor: vendor.text().parse::<Vendor>()?,
+                    model: model.text().parse::<Model>()?,
+                    serial_number: serial_number.text(),
+                    firmware_rev: firmware_revision_op.map(minidom::Element::text),
                 });
             }
         }
         Err(InstrumentError::InformationRetrievalError {
-            details: "unable to read model".to_string(),
+            details: "unable to read instrument information from LXI page".to_string(),
         })
     }
 }
@@ -194,41 +196,25 @@ impl TryFrom<&String> for InstrumentInfo {
 
 impl Display for InstrumentInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let vendor = self.vendor.as_ref().map_or_else(
-            || String::from("<UNKNOWN VENDOR>"),
-            std::clone::Clone::clone,
-        );
+        let vendor = self.vendor.to_string();
 
-        let model: String = self
-            .model
-            .as_ref()
-            .map_or_else(|| String::from("<UNKNOWN MODEL>"), std::clone::Clone::clone);
+        let model: String = self.model.to_string();
 
-        let sn: String = self.serial_number.as_ref().map_or_else(
-            || String::from("<UNKNOWN SERIAL NUMBER>"),
-            std::clone::Clone::clone,
-        );
+        let sn: String = self.serial_number.to_string();
 
-        let fw_rev = self.firmware_rev.as_ref().map_or_else(
-            || String::from("<UNKNOWN FIRMWARE REVISION>"),
-            std::clone::Clone::clone,
-        );
+        let fw_rev = self
+            .firmware_rev
+            .clone()
+            .unwrap_or_else(|| String::from("<UNKNOWN FIRMWARE REVISION>"));
 
-        let addr = self
-            .address
-            .as_ref()
-            .map_or_else(|| ConnectionAddr::Unknown, std::clone::Clone::clone);
-
-        if addr == ConnectionAddr::Unknown {
-            write!(f, "{vendor},MODEL {model},{sn},{fw_rev}")
-        } else {
-            write!(f, "{vendor},MODEL {model},{sn},{fw_rev},{addr}")
-        }
+        write!(f, "{vendor},MODEL {model},{sn},{fw_rev}")
     }
 }
 
 #[cfg(test)]
 mod unit {
+    use crate::model::{Model, Vendor};
+
     use super::InstrumentInfo;
 
     #[test]
@@ -237,11 +223,10 @@ mod unit {
 KEITHLEY INSTRUMENTS,MODEL 2461,04331961,1.7.12b
 TSP>";
         let expected = InstrumentInfo {
-            vendor: Some("KEITHLEY INSTRUMENTS".to_string()),
-            model: Some("2461".to_string()),
-            serial_number: Some("04331961".to_string()),
+            vendor: Vendor::Keithley,
+            model: Model::_2461,
+            serial_number: "04331961".to_string(),
             firmware_rev: Some("1.7.12b".to_string()),
-            address: None,
         };
 
         let actual = InstrumentInfo::try_from(&input[..]);
