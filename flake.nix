@@ -10,8 +10,8 @@
             };
         };
     };
-    outputs = { self, nixpkgs, flake-utils, rust-overlay }: 
-        flake-utils.lib.eachDefaultSystem 
+    outputs = { self, nixpkgs, flake-utils, rust-overlay }:
+        flake-utils.lib.eachDefaultSystem
             (system:
                 let
                     overlays = [ (import rust-overlay) ];
@@ -19,10 +19,9 @@
                         inherit system overlays;
                     };
                     rustToolchain = pkgs.pkgsBuildHost.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-                    nativeBuildInputs = with pkgs; [ 
-                        rustToolchain 
+                    nativeBuildInputs = with pkgs; [
+                        rustToolchain
                         pkg-config
-                        openssl
                     ];
                     buildInputs = with pkgs; [ ];
                 in

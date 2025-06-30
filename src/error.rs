@@ -5,8 +5,6 @@ use std::{net::AddrParseError, num::ParseIntError, string::FromUtf8Error};
 
 use thiserror::Error;
 
-use crate::interface::connection_addr::ConnectionAddr;
-
 /// Define errors that originate from this crate
 #[derive(Error, Debug)]
 #[allow(clippy::module_name_repetitions)]
@@ -23,16 +21,6 @@ pub enum InstrumentError {
     /// [`roxmltree`] encountered and issue in parsing XML.
     #[error("error parsing XML: {0}")]
     XmlParseError(#[from] roxmltree::Error),
-
-    /// The [`ConnectionAddr`] was not able to be converted to the desired device
-    /// interface type
-    #[error("unable to convert from `{from:?}` to {to}")]
-    ConnectionAddressConversionError {
-        /// The address information trying to be converted from
-        from: ConnectionAddr,
-        /// A string of name of the type trying to be converted to
-        to: String,
-    },
 
     /// There was an error while trying to connect to the interface or instrument.
     #[error("connection error occurred: {details}")]

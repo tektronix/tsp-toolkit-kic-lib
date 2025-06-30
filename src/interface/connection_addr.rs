@@ -11,38 +11,6 @@ use crate::instrument::info::InstrumentInfo;
 use crate::model::{Model, Vendor};
 use crate::InstrumentError;
 
-/// A generic connection address that covers all the different connection types.
-///
-/// Each device interface type will also have a [`TryFrom`] impl that converts from
-/// this enum to itself. [`From`] is **not** implemented because the conversion could
-/// fail.
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ConnectionAddr {
-    /// A LAN connection is created with a [`SocketAddr`], which includes an [`IpAddr`] and
-    /// a port for the connection.
-    Lan(SocketAddr),
-
-    /// A VISA resource string
-    Visa(VisaString),
-
-    //Add other device interface types here
-    Unknown,
-}
-
-impl Display for ConnectionAddr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            Self::Lan(lan_info) => lan_info.to_string(),
-
-            Self::Visa(visa_info) => visa_info.to_string(),
-
-            Self::Unknown => "<UNKNOWN>".to_string(),
-        };
-        write!(f, "{s}")
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConnectionInfo {
     /// A raw socket connection.
@@ -154,7 +122,7 @@ impl ConnectionInfo {
     }
 
     #[cfg(not(feature = "visa"))]
-    fn get_gpib_info(string: String) -> Result<InstrumentInfo, InstrumentError> {
+    const fn get_gpib_info(_string: &str) -> Result<InstrumentInfo, InstrumentError> {
         Err(InstrumentError::NoVisa)
     }
 
@@ -208,11 +176,6 @@ impl ConnectionInfo {
         };
 
         Ok(Some(xml))
-    }
-
-    #[cfg(not(feature = "visa"))]
-    fn get_gpib_model(&mut self) -> Result<Model, InstrumentError> {
-        return Err(InstrumentError::NoVisa);
     }
 }
 
@@ -376,11 +339,7 @@ pub mod unit {
                     "'{}' did not convert to '{:?}' properly",
                     c.0, c.1
                 ),
-                Err(e) => assert!(
-                    false,
-                    "'{}' could not be parsed into ConnectionInfo: {e}",
-                    c.0
-                ),
+                Err(e) => panic!("'{}' could not be parsed into ConnectionInfo: {e}", c.0),
             }
         }
     }

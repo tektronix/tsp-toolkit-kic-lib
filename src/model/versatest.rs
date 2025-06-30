@@ -565,7 +565,10 @@ mod unit {
 
         let mut instrument: Instrument = Instrument::new(
             protocol::Protocol::Raw(Raw::new(interface)),
-            Authentication::NoAuth,
+            Authentication::Credential {
+                username: String::new(),
+                password: "secret_token".to_string(),
+            },
         );
 
         assert_matches!(instrument.check_login(), Ok(instrument::State::Needed));
@@ -699,7 +702,10 @@ mod unit {
 
         let mut instrument: Instrument = Instrument::new(
             protocol::Protocol::Raw(Raw::new(interface)),
-            Authentication::NoAuth,
+            Authentication::Credential {
+                username: String::new(),
+                password: "secret_token".to_string(),
+            },
         );
 
         assert_matches!(instrument.check_login(), Ok(instrument::State::Needed));

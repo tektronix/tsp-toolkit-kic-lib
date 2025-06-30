@@ -1,6 +1,5 @@
 use crate::interface::connection_addr::ConnectionInfo;
 use crate::protocol::raw::Raw;
-use crate::protocol::visa::Visa;
 use std::{
     error::Error,
     fmt::Display,
@@ -85,35 +84,10 @@ pub fn is_visa_installed() -> bool {
 
 #[cfg(feature = "visa")]
 pub mod visa;
+#[cfg(feature = "visa")]
+use crate::protocol::visa::Visa;
 
-pub mod raw {
-
-    use std::ops::{Deref, DerefMut};
-
-    use crate::Interface;
-
-    pub struct Raw(Box<dyn Interface>);
-
-    impl Raw {
-        pub fn new(interface: impl Interface + 'static) -> Self {
-            Self(Box::new(interface))
-        }
-    }
-
-    impl Deref for Raw {
-        type Target = Box<dyn Interface>;
-
-        fn deref(&self) -> &Self::Target {
-            &self.0
-        }
-    }
-
-    impl DerefMut for Raw {
-        fn deref_mut(&mut self) -> &mut Self::Target {
-            &mut self.0
-        }
-    }
-}
+pub mod raw;
 
 pub enum Protocol {
     Raw(Raw),
@@ -135,6 +109,7 @@ impl Protocol {
     /// The errors that can occur are from each of the connection types: [`TcpStream`]
     /// and [`Visa`]
     pub fn connect(info: &ConnectionInfo) -> Result<Self, InstrumentError> {
+        #[allow(unused_variables)]
         match info {
             ConnectionInfo::Lan { addr } => {
                 let stream = TcpStream::connect(addr)?;
@@ -146,9 +121,12 @@ impl Protocol {
             | ConnectionInfo::Usb { string, .. }
             | ConnectionInfo::Gpib { string, .. }
             | ConnectionInfo::VisaSocket { string, .. } => {
-                if cfg!(feature = "visa") {
+                #[cfg(feature = "visa")]
+                {
                     Ok(Self::Visa(Visa::new(string)?))
-                } else {
+                }
+                #[cfg(not(feature = "visa"))]
+                {
                     Err(InstrumentError::NoVisa)
                 }
             }

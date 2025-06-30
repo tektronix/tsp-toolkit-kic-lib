@@ -18,7 +18,7 @@ pub(crate) mod test_util;
 
 pub use error::InstrumentError;
 pub use instrument::firmware::Flash;
-pub use interface::{connection_addr::ConnectionAddr, Interface};
+pub use interface::{connection_addr::ConnectionInfo, Interface};
 pub use model::{ki2600, tti, versatest};
 
 pub mod protocol;
