@@ -1,6 +1,12 @@
 use std::{fmt::Display, str::FromStr};
 
-use crate::InstrumentError;
+use tracing::trace;
+
+use crate::{
+    instrument::{authenticate::Authentication, Instrument},
+    interface::connection_addr::ConnectionInfo,
+    InstrumentError,
+};
 
 pub mod ki2600;
 pub mod ki3700;
@@ -13,6 +19,34 @@ pub fn is_supported(model: impl AsRef<str>) -> bool {
         || self::ki3700::Instrument::model_is(&model)
         || self::tti::Instrument::model_is(&model)
         || self::versatest::Instrument::model_is(&model)
+}
+
+/// Connect to an instrument given the instrument's connection information and authentication
+/// info.
+///
+/// # Errors
+/// Errors may occur when getting the model (for LAN-based connections, this would
+/// likely be a [`reqwest`] error from trying to fetch the LXI Identification page).
+/// IO errors or parsing errors are possible. There could be errors in establishing the
+/// connection as well.
+pub fn connect_to(
+    conn: &ConnectionInfo,
+    auth: Authentication,
+) -> Result<Box<dyn Instrument>, InstrumentError> {
+    let model: Model = conn.get_model()?;
+
+    Ok(if model.is_2600() {
+        Box::new(ki2600::Instrument::connect(conn, auth)?)
+    } else if model.is_3700_70x() {
+        Box::new(ki3700::Instrument::connect(conn, auth)?)
+    } else if model.is_tti() {
+        Box::new(tti::Instrument::connect(conn, auth)?)
+    } else if model.is_mp() {
+        Box::new(versatest::Instrument::connect(conn, auth)?)
+    } else {
+        trace!("Unable to determine instrument model, defaulting to MP5000 series connection procedure.");
+        Box::new(versatest::Instrument::connect(conn, auth)?)
+    })
 }
 
 //impl TryFrom<Protocol> for Box<dyn Instrument> {
