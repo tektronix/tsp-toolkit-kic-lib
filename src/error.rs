@@ -137,6 +137,15 @@ pub enum InstrumentError {
     #[error("unknown vendor error: {0}")]
     UnknownVendor(String),
 
+    #[error("system keyring error: {0}")]
+    KeyringError(#[from] keyring::Error),
+
+    #[error("serialization or deserialization error: {0}")]
+    SerializationError(#[from] serde_json::Error),
+
+    #[error("authentication failure: {0}")]
+    AuthenticationFailure(String),
+
     /// An uncategorized error.
     #[error("{0}")]
     Other(String),

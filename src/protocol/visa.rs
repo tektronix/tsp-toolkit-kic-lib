@@ -5,7 +5,7 @@ use std::{
 
 use visa_rs::{flags::AccessMode, AsResourceManager, VisaString, TIMEOUT_INFINITE};
 
-use crate::{interface::NonBlock, protocol::stb::Stb, InstrumentError};
+use crate::{interface::NonBlock, protocol::stb::Stb, InstrumentError, Interface};
 
 pub struct Visa {
     _rm: visa_rs::DefaultRM,
@@ -86,3 +86,5 @@ impl DerefMut for Visa {
         &mut self.inst
     }
 }
+
+impl Interface for Visa {}

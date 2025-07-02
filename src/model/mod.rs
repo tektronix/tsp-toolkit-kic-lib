@@ -5,6 +5,7 @@ use tracing::trace;
 use crate::{
     instrument::{authenticate::Authentication, Instrument},
     interface::connection_addr::ConnectionInfo,
+    protocol::Protocol,
     InstrumentError,
 };
 
@@ -46,6 +47,35 @@ pub fn connect_to(
     } else {
         trace!("Unable to determine instrument model, defaulting to MP5000 series connection procedure.");
         Box::new(versatest::Instrument::connect(conn, auth)?)
+    })
+}
+
+/// Connect to an instrument given the instrument's connection information and authentication
+/// info.
+///
+/// # Errors
+/// Errors may occur when getting the model (for LAN-based connections, this would
+/// likely be a [`reqwest`] error from trying to fetch the LXI Identification page).
+/// IO errors or parsing errors are possible. There could be errors in establishing the
+/// connection as well.
+pub fn connect_protocol(
+    conn: &ConnectionInfo,
+    proto: Protocol,
+    auth: Authentication,
+) -> Result<Box<dyn Instrument>, InstrumentError> {
+    let model: Model = conn.get_model()?;
+
+    Ok(if model.is_2600() {
+        Box::new(ki2600::Instrument::new(proto, auth))
+    } else if model.is_3700_70x() {
+        Box::new(ki3700::Instrument::new(proto, auth))
+    } else if model.is_tti() {
+        Box::new(tti::Instrument::new(proto, auth))
+    } else if model.is_mp() {
+        Box::new(versatest::Instrument::new(proto, auth))
+    } else {
+        trace!("Unable to determine instrument model, defaulting to MP5000 series connection procedure.");
+        Box::new(versatest::Instrument::new(proto, auth))
     })
 }
 

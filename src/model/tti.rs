@@ -1,12 +1,12 @@
 use std::{
-    io::{BufRead, Read, Write},
+    io::{BufRead, ErrorKind, Read, Write},
     time::Duration,
 };
 
 use bytes::Buf;
 use indicatif::{ProgressBar, ProgressStyle};
 use language::{CmdLanguage, Language};
-use tracing::trace;
+use tracing::{error, trace};
 
 use crate::{
     instrument::{
@@ -121,11 +121,19 @@ impl Login for Instrument {
         for _i in 0..5 {
             std::thread::sleep(Duration::from_millis(100));
             let mut resp: Vec<u8> = vec![0; 256];
-            let _read_bytes = self.read(&mut resp)?;
-            let resp = std::str::from_utf8(resp.as_slice())
-                .unwrap_or("")
-                .trim_matches(char::from(0))
-                .trim();
+            let read_size = match self.read(&mut resp) {
+                Ok(read_size) => read_size,
+                Err(e) if e.kind() == ErrorKind::WouldBlock => {
+                    continue;
+                }
+                Err(e) => {
+                    error!("{e:?}: {e}");
+                    return Err(e.into());
+                }
+            };
+            let resp = &resp[..read_size];
+
+            let resp = std::str::from_utf8(resp).unwrap_or("").trim();
 
             if resp.contains("SUCCESS: Logged in") || resp.contains('0') {
                 return Ok(instrument::State::NotNeeded);
@@ -149,14 +157,15 @@ impl Login for Instrument {
             return Err(InstrumentError::InterfaceLoginErr);
         }
 
-        println!("Instrument might be locked.\nEnter the password to unlock the instrument:");
         if let Some(password) = self.auth.read_password()? {
             self.write_all(format!("login {password}\n").as_bytes())?;
         }
 
         inst_login_state = self.check_login()?;
         if instrument::State::NotNeeded == inst_login_state {
-            println!("Login successful.");
+            let info = self.info()?;
+            self.auth
+                .save_credential(&info.model, &info.serial_number)?;
         } else if instrument::State::Needed == inst_login_state {
             return Err(InstrumentError::LoginRejected);
         }

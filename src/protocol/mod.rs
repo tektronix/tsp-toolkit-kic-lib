@@ -123,7 +123,11 @@ impl Protocol {
             | ConnectionInfo::VisaSocket { string, .. } => {
                 #[cfg(feature = "visa")]
                 {
-                    Ok(Self::Visa(Visa::new(string)?))
+                    use crate::interface::NonBlock;
+
+                    let mut visa = Visa::new(string)?;
+                    visa.set_nonblocking(true)?;
+                    Ok(Self::Visa(visa))
                 }
                 #[cfg(not(feature = "visa"))]
                 {
@@ -206,7 +210,7 @@ impl Write for Protocol {
             Self::Raw(_) => buf.len(),
 
             #[cfg(feature = "visa")]
-            Self::Visa(_) => 1024, //TODO Need a way to make this 4500 for Treb and 1000 for
+            Self::Visa(_) => 1000, //TODO Need a way to make this 4500 for Treb and 1000 for
                                    //everything else.
         };
         let mut end: usize = if start.saturating_add(step) < buf.len() {

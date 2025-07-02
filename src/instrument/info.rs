@@ -9,7 +9,7 @@ use crate::{
 };
 use std::{
     fmt::Display,
-    io::{Read, Write},
+    io::{ErrorKind, Read, Write},
     time::Duration,
 };
 
@@ -50,9 +50,12 @@ pub fn get_info<T: Read + Write + ?Sized>(rw: &mut T) -> Result<InstrumentInfo> 
         std::thread::sleep(Duration::from_millis(100));
 
         let mut buf = vec![0u8; 100];
-        let _ = rw.read(&mut buf)?;
-        let first_null = buf.iter().position(|&x| x == b'\0').unwrap_or(buf.len());
-        let buf = &buf[..first_null];
+        let read_bytes = match rw.read(&mut buf) {
+            Ok(b) => b,
+            Err(e) if e.kind() == ErrorKind::WouldBlock => continue,
+            Err(e) => return Err(e.into()),
+        };
+        let buf = &buf[..read_bytes];
         debug!("Buffer after *IDN?: {}", String::from_utf8_lossy(buf));
         if let Ok(i) = buf.try_into() {
             info = Some(i);
@@ -100,13 +103,13 @@ impl TryFrom<&[u8]> for InstrumentInfo {
                         .trim()
                         .to_string();
                     let (vendor, model, serial_number, firmware_rev) = (
-                        Some(String::from_utf8_lossy(v).to_string()),
+                        Some(String::from_utf8_lossy(v).trim().to_string()),
                         String::from_utf8_lossy(m)
                             .to_uppercase()
                             .split("MODEL ")
                             .last()
-                            .map(std::string::ToString::to_string),
-                        Some(String::from_utf8_lossy(s).to_string()),
+                            .map(|i| i.trim().to_string()),
+                        Some(String::from_utf8_lossy(s).trim().to_string()),
                         Some(fw_rev),
                     );
 
@@ -181,7 +184,7 @@ impl TryFrom<&String> for InstrumentInfo {
                 return Ok(Self {
                     vendor: vendor.text().parse::<Vendor>()?,
                     model: model.text().parse::<Model>()?,
-                    serial_number: serial_number.text(),
+                    serial_number: serial_number.text().trim().to_string(),
                     firmware_rev: firmware_revision_op.map(minidom::Element::text),
                 });
             }

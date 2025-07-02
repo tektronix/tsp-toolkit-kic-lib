@@ -15,6 +15,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
     Fixed -- for any bug fixes.
     Security -- in case of vulnerabilities.
 -->
+## [0.21.0]
+
+### Changed
+- Major changes to how passwords are used and how instruments are created
+
 ## [0.19.9]
 
 ### Changed
