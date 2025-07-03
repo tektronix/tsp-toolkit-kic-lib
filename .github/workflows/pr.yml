@@ -173,6 +173,9 @@ jobs:
     steps:
       - name: Tool Setup
         run: rustup update nightly && rustup default nightly
+      - name: Install DBUS (linux only)
+        if: ${{ matrix.runner == 'ubuntu-latest' }}
+        run: apt update && apt install libdbus-1-dev
       - name: Ensure Correct Target is Installed
         run: rustup target add ${{matrix.triple}}
       - name: Tool Versions
