@@ -438,6 +438,37 @@ mod unit {
                 Ok(msg.len())
             });
 
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"*CLS\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"*IDN?\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf.len() >= 8)
+            .return_once(|buf: &mut [u8]| {
+                let msg = b"Keithley Instruments,MODEL 3706A,00000000,1.1.1\n";
+                if buf.len() >= msg.len() {
+                    let bytes = msg[..]
+                        .reader()
+                        .read(buf)
+                        .expect("MockInstrument should write to buffer");
+                    assert_eq!(bytes, msg.len());
+                }
+                Ok(msg.len())
+            });
+
         // check_login()
         interface
             .expect_write()

@@ -516,7 +516,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"password secret_token\n")
+            .withf(|buf: &[u8]| buf == b"login secret_token\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         // login() { second check_login() }
@@ -534,6 +534,37 @@ mod unit {
             .withf(|buf: &[u8]| buf.len() >= 8)
             .return_once(|buf: &mut [u8]| {
                 let msg = b"unlocked\n";
+                if buf.len() >= msg.len() {
+                    let bytes = msg[..]
+                        .reader()
+                        .read(buf)
+                        .expect("MockInstrument should write to buffer");
+                    assert_eq!(bytes, msg.len());
+                }
+                Ok(msg.len())
+            });
+
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"*CLS\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_write()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf == b"*IDN?\n")
+            .returning(|buf: &[u8]| Ok(buf.len()));
+
+        interface
+            .expect_read()
+            .times(1)
+            .in_sequence(&mut seq)
+            .withf(|buf: &[u8]| buf.len() >= 8)
+            .return_once(|buf: &mut [u8]| {
+                let msg = b"Keithley Instruments,MODEL MP5103,00000000,1.1.1\n";
                 if buf.len() >= msg.len() {
                     let bytes = msg[..]
                         .reader()
@@ -653,7 +684,7 @@ mod unit {
             .expect_write()
             .times(1)
             .in_sequence(&mut seq)
-            .withf(|buf: &[u8]| buf == b"password secret_token\n")
+            .withf(|buf: &[u8]| buf == b"login secret_token\n")
             .returning(|buf: &[u8]| Ok(buf.len()));
 
         // login() { second check_login() }
