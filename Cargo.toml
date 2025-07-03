@@ -23,7 +23,6 @@ roxmltree = { version = "0.20.0", default-features = false, features = ["std"] }
 keyring = { version = "3.6.2", features = ["apple-native", "windows-native", "linux-native-sync-persistent", "crypto-rust"] }
 
 [features]
-default = ["visa"]
 visa = ["dep:visa-rs"]
 
 [dev-dependencies]

@@ -1,5 +1,8 @@
 // Authenticate functionality of the instrument.
 
+#[cfg(test)]
+use keyring::{mock, set_default_credential_builder};
+
 use crate::{model::Model, InstrumentError};
 
 const SERVICE_NAME: &str = "tsp-toolkit";
@@ -134,6 +137,9 @@ impl Authentication {
     /// # Errors
     /// Errors may occur from the interactions with the [`keyring`] crate.
     pub fn save_credential(&self, model: &Model, serial: &str) -> Result<(), InstrumentError> {
+        #[cfg(test)] // Don't use the system credential manager for unit tests.
+        set_default_credential_builder(mock::default_credential_builder());
+
         let name = format!("{model}#{serial}");
         let (username, password) = match self {
             Self::Prompt => {
