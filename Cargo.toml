@@ -15,7 +15,6 @@ serde_json = "1"
 thiserror = "2"
 tracing = { version = "0.1", features = ["async-await"] }
 chrono = "0.4"
-minidom = "0.15"
 reqwest = { version = "0.12", features = ["blocking"] }
 visa-rs = { version = "0.6.2", optional = true }
 indicatif = "0.17.11"

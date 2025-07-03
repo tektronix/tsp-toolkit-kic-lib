@@ -1,5 +1,4 @@
 //! Define the trait and datatypes necessary to describe an instrument.
-use minidom::Element;
 use tracing::{debug, instrument};
 
 use crate::{
@@ -151,46 +150,42 @@ impl TryFrom<&[u8]> for InstrumentInfo {
     }
 }
 
+fn parse_xml_info_field(
+    xml: &roxmltree::Document,
+    tag: &str,
+) -> std::result::Result<String, InstrumentError> {
+    let Some(item) = xml.descendants().find(|n| n.tag_name().name() == tag) else {
+        return Err(InstrumentError::InformationRetrievalError {
+            details: format!("unable to get {tag} tag from LXI identification XML"),
+        });
+    };
+
+    let Some(item) = item.text() else {
+        return Err(InstrumentError::InformationRetrievalError {
+            details: format!(
+                "the {tag} tag in the LXI identification XML did not contain any text"
+            ),
+        });
+    };
+
+    Ok(item.trim().to_string())
+}
+
 impl TryFrom<&String> for InstrumentInfo {
     type Error = InstrumentError;
 
     fn try_from(xml_data: &String) -> std::result::Result<Self, Self::Error> {
-        const DEVICE_NS: &str = "http://www.lxistandard.org/InstrumentIdentification/1.0";
-        if let Ok(root) = xml_data.parse::<Element>() {
-            if root.is("LXIDevice", DEVICE_NS) {
-                let manufacturer_op = root.get_child("Manufacturer", DEVICE_NS);
-                let model_op = root.get_child("Model", DEVICE_NS);
-                let serial_number_op = root.get_child("SerialNumber", DEVICE_NS);
-                let firmware_revision_op = root.get_child("FirmwareRevision", DEVICE_NS);
+        let xml = roxmltree::Document::parse(xml_data)?;
+        let vendor: Vendor = parse_xml_info_field(&xml, "Manufacturer")?.parse()?;
+        let model: Model = parse_xml_info_field(&xml, "Model")?.parse()?;
+        let serial_number = parse_xml_info_field(&xml, "SerialNumber")?;
+        let firmware_rev = Some(parse_xml_info_field(&xml, "FirmwareRevision")?);
 
-                let Some(vendor) = manufacturer_op else {
-                    return Err(InstrumentError::InformationRetrievalError {
-                        details: "unable to parse vendor".to_string(),
-                    });
-                };
-
-                let Some(model) = model_op else {
-                    return Err(InstrumentError::InformationRetrievalError {
-                        details: "unable to parse model".to_string(),
-                    });
-                };
-
-                let Some(serial_number) = serial_number_op else {
-                    return Err(InstrumentError::InformationRetrievalError {
-                        details: "unable to parse serial number".to_string(),
-                    });
-                };
-
-                return Ok(Self {
-                    vendor: vendor.text().parse::<Vendor>()?,
-                    model: model.text().parse::<Model>()?,
-                    serial_number: serial_number.text().trim().to_string(),
-                    firmware_rev: firmware_revision_op.map(minidom::Element::text),
-                });
-            }
-        }
-        Err(InstrumentError::InformationRetrievalError {
-            details: "unable to read instrument information from LXI page".to_string(),
+        Ok(Self {
+            vendor,
+            model,
+            serial_number,
+            firmware_rev,
         })
     }
 }

@@ -4,6 +4,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use reqwest::blocking::Client;
+
 #[cfg(feature = "visa")]
 use visa_rs::VisaString;
 
