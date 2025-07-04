@@ -31,10 +31,14 @@ pub trait Instrument:
 {
 }
 
+/// Read the output until one of the strings in `one_of` is found
+///
+/// # Errors
+/// This function may result in IO errors from trying to read from `rw`.
 #[tracing::instrument(skip(rw))]
 pub fn read_until<T: Read + Write + ?Sized>(
     rw: &mut T,
-    one_of: Vec<String>,
+    one_of: &[String],
     max_attempts: usize,
     delay_between_attempts: Duration,
 ) -> Result<String> {
@@ -55,7 +59,7 @@ pub fn read_until<T: Read + Write + ?Sized>(
         if !buf.is_empty() {
             accumulate = format!("{accumulate}{}", String::from_utf8_lossy(buf));
         }
-        for s in &one_of {
+        for s in one_of {
             if accumulate.contains(s) {
                 return Ok(accumulate.trim().to_string());
             }
@@ -84,7 +88,7 @@ pub fn clear_output_queue<T: Read + Write + ?Sized>(
     debug!("Sending print({timestamp})");
     rw.write_all(format!("print(\"{timestamp}\")\n").as_bytes())?;
 
-    match read_until(rw, vec![timestamp], max_attempts, delay_between_attempts) {
+    match read_until(rw, &[timestamp], max_attempts, delay_between_attempts) {
         Ok(_) => Ok(()),
         Err(InstrumentError::Other(_)) => Err(InstrumentError::Other(
             "unable to clear instrument output queue".to_string(),

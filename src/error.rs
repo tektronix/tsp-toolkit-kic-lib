@@ -1,11 +1,9 @@
 //! All the errors that this crate can emit are defined in the
 //! [`error::InstrumentError`] enum.
 
-use std::{num::ParseIntError, string::FromUtf8Error};
+use std::{net::AddrParseError, num::ParseIntError, string::FromUtf8Error};
 
 use thiserror::Error;
-
-use crate::interface::connection_addr::ConnectionAddr;
 
 /// Define errors that originate from this crate
 #[derive(Error, Debug)]
@@ -13,21 +11,16 @@ use crate::interface::connection_addr::ConnectionAddr;
 pub enum InstrumentError {
     /// The `unparsable_string` was passed where an address was expected, but
     /// it couldn't be parsed to a valid address.
-    #[error("unable to parse `{unparsable_string}`, expected an address")]
-    AddressParsingError {
-        ///The string that couldn't be parsed
-        unparsable_string: String,
-    },
+    #[error("address parsing error: {0}")]
+    AddressParsingError(String),
 
-    /// The [`ConnectionAddr`] was not able to be converted to the desired device
-    /// interface type
-    #[error("unable to convert from `{from:?}` to {to}")]
-    ConnectionAddressConversionError {
-        /// The address information trying to be converted from
-        from: ConnectionAddr,
-        /// A string of name of the type trying to be converted to
-        to: String,
-    },
+    /// [`reqwest`] encountered an error when trying to fetch web data.
+    #[error("web retrieval error: {0}")]
+    WebRetrievalError(#[from] reqwest::Error),
+
+    /// [`roxmltree`] encountered and issue in parsing XML.
+    #[error("error parsing XML: {0}")]
+    XmlParseError(#[from] roxmltree::Error),
 
     /// There was an error while trying to connect to the interface or instrument.
     #[error("connection error occurred: {details}")]
@@ -99,6 +92,18 @@ pub enum InstrumentError {
         error: String,
     },
 
+    /// There was an error getting the model from the instrument.
+    #[error("model parse error: {0}")]
+    GetModelError(String),
+
+    /// The VISA feature was not enabled and therefore no visa methods can be called
+    #[error("the requested feature requires a VISA module to be installed")]
+    NoVisa,
+
+    /// There was an error parsing an IP address
+    #[error("address parsing error: {0}")]
+    AddrParseError(#[from] AddrParseError),
+
     /// The queried instrument returned an unknown model number
     #[error("\"{model}\" is not a recognized model number")]
     UnknownInstrumentModel {
@@ -121,8 +126,25 @@ pub enum InstrumentError {
         source: visa_rs::Error,
     },
 
+    #[cfg(feature = "visa")]
+    /// An error from the visa driver
+    #[error("visa parse error: {0}")]
+    VisaParseError(String),
+
     #[error("Instrument upgrade failed: {0}")]
     FwUpgradeFailure(String),
+
+    #[error("unknown vendor error: {0}")]
+    UnknownVendor(String),
+
+    #[error("system keyring error: {0}")]
+    KeyringError(#[from] keyring::Error),
+
+    #[error("serialization or deserialization error: {0}")]
+    SerializationError(#[from] serde_json::Error),
+
+    #[error("authentication failure: {0}")]
+    AuthenticationFailure(String),
 
     /// An uncategorized error.
     #[error("{0}")]
