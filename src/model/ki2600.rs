@@ -47,8 +47,8 @@ impl Instrument {
     /// There can also be issues in getting the instrument information using
     /// [`ConnectionInfo::get_info()`].
     pub fn connect(conn: &ConnectionInfo, auth: Authentication) -> Result<Self, InstrumentError> {
-        let protocol = Protocol::connect(conn)?;
-        let info = conn.get_info()?;
+        let mut protocol = Protocol::connect(conn)?;
+        let info = get_info(&mut protocol)?;
 
         Ok(Self {
             info: Some(info),
@@ -75,15 +75,7 @@ impl Instrument {
 //Implement device_interface::Interface since it is a subset of instrument::Instrument trait.
 impl instrument::Instrument for Instrument {}
 
-impl Info for Instrument {
-    fn info(&mut self) -> crate::error::Result<InstrumentInfo> {
-        if let Some(inst_info) = self.info.clone() {
-            return Ok(inst_info);
-        }
-
-        get_info(self)
-    }
-}
+impl Info for Instrument { }
 
 impl language::Language for Instrument {}
 

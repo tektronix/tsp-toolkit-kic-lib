@@ -1,6 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
-use tracing::trace;
+use tracing::{instrument, trace};
 
 use crate::{
     instrument::{authenticate::Authentication, Instrument},
@@ -30,10 +30,12 @@ pub fn is_supported(model: impl AsRef<str>) -> bool {
 /// likely be a [`reqwest`] error from trying to fetch the LXI Identification page).
 /// IO errors or parsing errors are possible. There could be errors in establishing the
 /// connection as well.
+#[instrument(skip(conn, auth))]
 pub fn connect_to(
     conn: &ConnectionInfo,
     auth: Authentication,
 ) -> Result<Box<dyn Instrument>, InstrumentError> {
+    trace!("Connecting to {conn}");
     let model: Model = conn.get_model()?;
 
     Ok(if model.is_2600() {
@@ -232,6 +234,7 @@ macro_rules! define_models {
         impl std::str::FromStr for $e_name {
             type Err = $error;
             fn from_str(val: &str) -> Result<Self, Self::Err> {
+                tracing::trace!("{val}");
                 match val {
                     $(
                         $string_rep$(| $string_alt)* => Ok($e_name::$name)
