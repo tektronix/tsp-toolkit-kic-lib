@@ -4,7 +4,8 @@ use std::{
     error::Error,
     fmt::Display,
     io::{Read, Write},
-    net::TcpStream, time::Duration,
+    net::TcpStream,
+    time::Duration,
 };
 
 #[cfg(not(target_os = "macos"))]

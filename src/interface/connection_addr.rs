@@ -104,7 +104,7 @@ impl ConnectionInfo {
             // the value we need, parses it, and directly returns it.
             Self::Gpib { string } => {
                 trace!("Getting information over GPIB");
-                return Self::get_gpib_info(string)
+                return Self::get_gpib_info(string);
             }
         };
 

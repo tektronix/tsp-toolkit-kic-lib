@@ -74,7 +74,7 @@ impl Instrument {
 //Implement device_interface::Interface since it is a subset of instrument::Instrument trait.
 impl instrument::Instrument for Instrument {}
 
-impl Info for Instrument { }
+impl Info for Instrument {}
 
 impl language::Language for Instrument {}
 
