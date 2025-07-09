@@ -5,6 +5,7 @@ use std::{
     fmt::Display,
     io::{Read, Write},
     net::TcpStream,
+    time::Duration,
 };
 
 #[cfg(not(target_os = "macos"))]
@@ -114,6 +115,8 @@ impl Protocol {
             ConnectionInfo::Lan { addr } => {
                 let stream = TcpStream::connect(addr)?;
                 stream.set_nonblocking(true)?;
+                stream.set_write_timeout(Some(Duration::from_millis(1000)))?;
+                stream.set_read_timeout(Some(Duration::from_millis(1000)))?;
                 Ok(Self::Raw(Raw::new(stream)))
             }
             ConnectionInfo::Vxi11 { string, .. }

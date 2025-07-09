@@ -8,10 +8,8 @@ use tracing::{error, trace};
 
 use crate::{
     instrument::{
-        self,
-        authenticate::Authentication,
-        info::{get_info, InstrumentInfo},
-        language, Abort, Info, Login, Reset, Script,
+        self, authenticate::Authentication, info::InstrumentInfo, language, Abort, Info, Login,
+        Reset, Script,
     },
     interface::{connection_addr::ConnectionInfo, NonBlock},
     model::Model,
@@ -45,12 +43,12 @@ impl Instrument {
     /// There can be issues in creating the protocol from the given [`ConnectionInfo`].
     /// There can also be issues in getting the instrument information using
     /// [`ConnectionInfo::get_info()`].
+    #[tracing::instrument(skip(conn, auth))]
     pub fn connect(conn: &ConnectionInfo, auth: Authentication) -> Result<Self, InstrumentError> {
         let protocol = Protocol::connect(conn)?;
-        let info = conn.get_info()?;
 
         Ok(Self {
-            info: Some(info),
+            info: None,
             protocol,
             auth,
         })
@@ -74,15 +72,7 @@ impl Instrument {
 //Implement device_interface::Interface since it is a subset of instrument::Instrument trait.
 impl instrument::Instrument for Instrument {}
 
-impl Info for Instrument {
-    fn info(&mut self) -> crate::error::Result<InstrumentInfo> {
-        if let Some(inst_info) = self.info.clone() {
-            return Ok(inst_info);
-        }
-
-        get_info(self)
-    }
-}
+impl Info for Instrument {}
 
 impl language::Language for Instrument {}
 

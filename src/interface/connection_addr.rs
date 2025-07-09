@@ -1,10 +1,12 @@
 use std::fmt::Display;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::io::{Read, Write};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream};
 use std::str::FromStr;
 use std::time::Duration;
 
 use reqwest::blocking::Client;
 
+use tracing::{instrument, trace};
 #[cfg(feature = "visa")]
 use visa_rs::VisaString;
 
@@ -57,12 +59,31 @@ impl ConnectionInfo {
     /// # Errors
     /// Errors may occur when fetching or parsing the data from LXI identification page
     /// or the IDN string (depending on the connection protocol)
+    #[instrument(skip(self))]
     pub fn get_info(&self) -> Result<InstrumentInfo, InstrumentError> {
+        trace!("getting instrument info");
         let xml = match self {
+            Self::Lan { addr } if addr.ip().is_loopback() => {
+                trace!("getting info over loopback");
+                //Special case for TSPop
+                let mut inst = TcpStream::connect(addr)?;
+                inst.write_all(b"abort\n")?;
+                inst.write_all(b"*CLS\n")?;
+                std::thread::sleep(Duration::from_millis(100));
+                inst.write_all(b"*IDN?\n")?;
+                let buf = &mut [0u8; 128];
+                let num_bytes = inst.read(buf)?;
+                let buf = &buf[..num_bytes];
+                drop(inst);
+                return buf.try_into();
+            }
             Self::Lan { .. }
             | Self::Vxi11 { .. }
             | Self::HiSlip { .. }
-            | Self::VisaSocket { .. } => self.get_lxi_id_xml()?,
+            | Self::VisaSocket { .. } => {
+                trace!("getting information from LXI identification page");
+                self.get_lxi_id_xml()?
+            }
             // The USBTMC resource string requires the USB model identifier, so we can
             // get that directly and return it.
             Self::Usb {
@@ -71,6 +92,7 @@ impl ConnectionInfo {
                 serial,
                 ..
             } => {
+                trace!("deriving information from USB resource string");
                 return Ok(InstrumentInfo {
                     vendor: vendor.clone(),
                     model: model.clone(),
@@ -80,7 +102,10 @@ impl ConnectionInfo {
             }
             // GPIB just uses `*IDN?` and assumes the 2nd comma-separated element is
             // the value we need, parses it, and directly returns it.
-            Self::Gpib { string } => return Self::get_gpib_info(string),
+            Self::Gpib { string } => {
+                trace!("Getting information over GPIB");
+                return Self::get_gpib_info(string);
+            }
         };
 
         let Some(xml) = xml else {
@@ -95,7 +120,9 @@ impl ConnectionInfo {
     /// # Errors
     /// Errors can occur from attempting to get the instrument information with
     /// [`ConnectionInfo::get_info()`].
+    #[instrument(skip(self))]
     pub fn get_model(&self) -> Result<Model, InstrumentError> {
+        trace!("Getting model");
         Ok(self.get_info()?.model)
     }
 
@@ -146,6 +173,7 @@ impl ConnectionInfo {
                 // it does it will redirect, so just use `http`
                 client
                     .get(format!("http://{}/lxi/identification", addr.ip()))
+                    .timeout(Duration::from_secs(2))
                     .send()?
                     .text()?
             }

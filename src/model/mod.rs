@@ -1,6 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
-use tracing::trace;
+use tracing::{instrument, trace};
 
 use crate::{
     instrument::{authenticate::Authentication, Instrument},
@@ -30,10 +30,12 @@ pub fn is_supported(model: impl AsRef<str>) -> bool {
 /// likely be a [`reqwest`] error from trying to fetch the LXI Identification page).
 /// IO errors or parsing errors are possible. There could be errors in establishing the
 /// connection as well.
+#[instrument(skip(conn, auth))]
 pub fn connect_to(
     conn: &ConnectionInfo,
     auth: Authentication,
 ) -> Result<Box<dyn Instrument>, InstrumentError> {
+    trace!("Connecting to {conn}");
     let model: Model = conn.get_model()?;
 
     Ok(if model.is_2600() {
@@ -232,6 +234,7 @@ macro_rules! define_models {
         impl std::str::FromStr for $e_name {
             type Err = $error;
             fn from_str(val: &str) -> Result<Self, Self::Err> {
+                tracing::trace!("{val}");
                 match val {
                     $(
                         $string_rep$(| $string_alt)* => Ok($e_name::$name)
@@ -385,24 +388,24 @@ impl Model {
             //| Self::_2651A
             //| Self::_2657A
             Self::_2601B
-                //| Self::_2601B_PULSE
-                | Self::_2602B
-                | Self::_2606B
-                | Self::_2611B
-                | Self::_2612B
-                | Self::_2635B
-                | Self::_2636B
-                | Self::_2604B
-                | Self::_2614B
-                | Self::_2634B //| Self::_2601B_L
-                               //| Self::_2602B_L
-                               //| Self::_2611B_L
-                               //| Self::_2612B_L
-                               //| Self::_2635B_L
-                               //| Self::_2636B_L
-                               //| Self::_2604B_L
-                               //| Self::_2614B_L
-                               //| Self::_2634B_L
+            //| Self::_2601B_PULSE
+            | Self::_2602B
+            | Self::_2606B
+            | Self::_2611B
+            | Self::_2612B
+            | Self::_2635B
+            | Self::_2636B
+            | Self::_2604B
+            | Self::_2614B
+            | Self::_2634B //| Self::_2601B_L
+                           //| Self::_2602B_L
+                           //| Self::_2611B_L
+                           //| Self::_2612B_L
+                           //| Self::_2635B_L
+                           //| Self::_2636B_L
+                           //| Self::_2604B_L
+                           //| Self::_2614B_L
+                           //| Self::_2634B_L
         )
     }
 

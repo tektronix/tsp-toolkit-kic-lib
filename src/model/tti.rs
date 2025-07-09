@@ -5,15 +5,15 @@ use std::{
 
 use bytes::Buf;
 use indicatif::{ProgressBar, ProgressStyle};
-use language::{CmdLanguage, Language};
-use tracing::{error, trace};
+use tracing::{self, error, trace};
 
 use crate::{
     instrument::{
         self,
         authenticate::Authentication,
-        info::{get_info, InstrumentInfo},
-        language, Abort, Info, Login, Reset, Script,
+        info::InstrumentInfo,
+        language::{CmdLanguage, Language},
+        Abort, Info, Login, Reset, Script,
     },
     interface::{connection_addr::ConnectionInfo, NonBlock},
     model::Model,
@@ -47,12 +47,12 @@ impl Instrument {
     /// There can be issues in creating the protocol from the given [`ConnectionInfo`].
     /// There can also be issues in getting the instrument information using
     /// [`ConnectionInfo::get_info()`].
+    #[tracing::instrument(skip(conn, auth))]
     pub fn connect(conn: &ConnectionInfo, auth: Authentication) -> Result<Self, InstrumentError> {
         let protocol = Protocol::connect(conn)?;
-        let info = conn.get_info()?;
 
         Ok(Self {
-            info: Some(info),
+            info: None,
             protocol,
             auth,
         })
@@ -76,15 +76,7 @@ impl Instrument {
 //Implement device_interface::Interface since it is a subset of instrument::Instrument trait.
 impl instrument::Instrument for Instrument {}
 
-impl Info for Instrument {
-    fn info(&mut self) -> crate::error::Result<InstrumentInfo> {
-        if let Some(inst_info) = self.info.clone() {
-            return Ok(inst_info);
-        }
-
-        get_info(self)
-    }
-}
+impl Info for Instrument {}
 
 impl Language for Instrument {
     fn get_language(&mut self) -> Result<CmdLanguage, InstrumentError> {
@@ -92,11 +84,18 @@ impl Language for Instrument {
         for _i in 0..5 {
             std::thread::sleep(Duration::from_millis(100));
             let mut lang: Vec<u8> = vec![0; 256];
-            let _read = self.read(&mut lang)?;
-            let lang = std::str::from_utf8(lang.as_slice())
-                .unwrap_or("")
-                .trim_matches(char::from(0))
-                .trim();
+            let read_size = match self.read(&mut lang) {
+                Ok(read_size) => read_size,
+                Err(e) if e.kind() == ErrorKind::WouldBlock => {
+                    continue;
+                }
+                Err(e) => {
+                    error!("{e:?}: {e}");
+                    return Err(e.into());
+                }
+            };
+            let lang = &lang[0..read_size];
+            let lang = std::str::from_utf8(lang).unwrap_or("").trim();
 
             if lang.contains("TSP") {
                 return Ok(CmdLanguage::Tsp);

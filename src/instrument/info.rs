@@ -104,8 +104,7 @@ impl TryFrom<&[u8]> for InstrumentInfo {
                     let (vendor, model, serial_number, firmware_rev) = (
                         Some(String::from_utf8_lossy(v).trim().to_string()),
                         String::from_utf8_lossy(m)
-                            .to_uppercase()
-                            .split("MODEL ")
+                            .split_whitespace()
                             .last()
                             .map(|i| i.trim().to_string()),
                         Some(String::from_utf8_lossy(s).trim().to_string()),
