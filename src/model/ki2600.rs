@@ -11,7 +11,7 @@ use crate::{
     instrument::{
         self,
         authenticate::Authentication,
-        info::{get_info, InstrumentInfo},
+        info::InstrumentInfo,
         language, Abort, Info, Login, Reset, Script,
     },
     interface::{connection_addr::ConnectionInfo, NonBlock},
@@ -46,12 +46,12 @@ impl Instrument {
     /// There can be issues in creating the protocol from the given [`ConnectionInfo`].
     /// There can also be issues in getting the instrument information using
     /// [`ConnectionInfo::get_info()`].
+    #[tracing::instrument(skip(conn, auth))]
     pub fn connect(conn: &ConnectionInfo, auth: Authentication) -> Result<Self, InstrumentError> {
-        let mut protocol = Protocol::connect(conn)?;
-        let info = get_info(&mut protocol)?;
+        let protocol = Protocol::connect(conn)?;
 
         Ok(Self {
-            info: Some(info),
+            info: None,
             protocol,
             auth,
         })
