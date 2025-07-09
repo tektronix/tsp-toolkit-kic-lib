@@ -8,10 +8,8 @@ use tracing::{error, trace};
 
 use crate::{
     instrument::{
-        self,
-        authenticate::Authentication,
-        info::InstrumentInfo,
-        language, Abort, Info, Login, Reset, Script,
+        self, authenticate::Authentication, info::InstrumentInfo, language, Abort, Info, Login,
+        Reset, Script,
     },
     interface::{connection_addr::ConnectionInfo, NonBlock},
     model::Model,

@@ -5,12 +5,8 @@ use std::{
 
 use crate::{
     instrument::{
-        self,
-        authenticate::Authentication,
-        clear_output_queue,
-        info::InstrumentInfo,
-        language::Language,
-        read_until, Abort, Info, Login, Reset, Script,
+        self, authenticate::Authentication, clear_output_queue, info::InstrumentInfo,
+        language::Language, read_until, Abort, Info, Login, Reset, Script,
     },
     interface::{connection_addr::ConnectionInfo, NonBlock},
     model::Model,
