@@ -139,7 +139,7 @@ impl Authentication {
     /// Returns an error if there was an error accessing the keyring (besides not existing)
     pub fn keyring_entry_exists(&self) -> Result<bool, InstrumentError> {
         match self {
-            Self::Keyring{ id } => {
+            Self::Keyring { id } => {
                 let entry = keyring::Entry::new(SERVICE_NAME, id)?;
                 match entry.get_secret() {
                     Ok(_) => Ok(true),
