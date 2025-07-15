@@ -131,6 +131,26 @@ impl Authentication {
         }
     }
 
+    /// Checks to see if this keyring entry exists
+    ///
+    /// Returns `false` for all `Authentication` variants that are not `Authentication::Keyring`
+    ///
+    /// # Errors
+    /// Returns an error if there was an error accessing the keyring (besides not existing)
+    pub fn keyring_entry_exists(&self) -> Result<bool, InstrumentError> {
+        match self {
+            Self::Keyring { id } => {
+                let entry = keyring::Entry::new(SERVICE_NAME, id)?;
+                match entry.get_secret() {
+                    Ok(_) => Ok(true),
+                    Err(keyring::Error::NoEntry) => Ok(false),
+                    Err(e) => Err(e.into()),
+                }
+            }
+            _ => Ok(false),
+        }
+    }
+
     /// Saves this credential to the system keyring. This will overwrite an existing
     /// entry or create a new one if it doesn't already exist.
     ///

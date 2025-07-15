@@ -223,7 +223,8 @@ macro_rules! define_models {
     ($e_name: ident, $error: ident, $(($name:ident, $string_rep:literal$( | $string_alt:literal)*, $pid:literal$( | $pid_alt:literal)*),)+) => {
         #[derive(Debug, Hash, PartialEq, Eq, Clone, serde::Serialize)]
         pub enum $e_name {
-            $($name),+,
+            $(#[serde(rename=$string_rep)]$name),+,
+            #[serde(rename="Unknown Model")]
             Other(String),
         }
 
