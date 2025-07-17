@@ -211,7 +211,6 @@ impl FromStr for Vendor {
     }
 }
 
-
 /// This macro is intended only to define instrument models. It should not be used for
 /// any other purpose and must not be made public in any way.
 ///
@@ -332,7 +331,7 @@ pub enum Family {
     ModularPlatform,
 }
 
-define_models!{
+define_models! {
     pub enum Model[InstrumentError, Family] {
         //2600
         _2601A <- ["2601"] #Family::_26xx,
