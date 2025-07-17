@@ -320,7 +320,7 @@ impl FromStr for ConnectionInfo {
                             "'{s}' did not have a recognized VISA address"
                         )));
                     };
-                    let pid: Model = pid.into();
+                    let pid: Model = Model::from_pid(pid);
 
                     let serial = resource_string[3].to_string();
 

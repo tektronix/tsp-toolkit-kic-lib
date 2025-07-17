@@ -219,199 +219,205 @@ impl FromStr for Vendor {
 /// instruments on a best-guess basis). It also implements [`std::str::FromStr`],
 /// [`std::fmt::Display`], and [`std::convert::From<u16>`] (for USB product IDs) for
 /// each model provided.
+///
+/// # Syntax
+/// The syntax is as follows:
+/// ```ignore
+/// define_models! {
+///     <VIS> enum Models[<ERROR-TYPE>, <FAMILY-TYPE>] {
+///         <VARIANT-NAME>[<u16-PID] <- [<STRING-REPRESENTATION>,<OTHER-STRING-REPS>...] #<FAMILY-GROUP,
+///         <VARIANT-NAME> <- [<STRING-REPRESENTATION>,<OTHER-STRING-REPS>...] #<FAMILY-GROUP,
+///     }
+/// }
+/// ```
+/// # Example
+///
+/// ```ignore
+/// # #[derive(Debug, Clone, thiserror::Error)]
+/// # pub enum CarError {
+/// #   #[error("Error: {0}")]
+/// #   A(String),
+/// # }
+///
+/// pub enum Family {
+///     A,
+///     B,
+///     C,
+/// }
+///
+/// define_models! {
+///     pub enum Cars[CarError, Family] {
+///         ModelT <- ["Ford Model T", "Model T", "Mr. T"] #Family::A,
+///         _300[0x0300] <- ["Chrysler 300", "300"] #Family::B,
+///         M3[0x0003] <- ["BMW M3"] #Family::C,
+///     }
+/// }
+/// ```
 macro_rules! define_models {
-    ($e_name: ident, $error: ident, $(($name:ident, $string_rep:literal$( | $string_alt:literal)*, $pid:literal$( | $pid_alt:literal)*),)+) => {
+    (
+        pub enum $name:ident[$error:path, $fam:path] {
+            $(
+                $variant:ident$([$pid:expr])? <- [$string_val:literal$(,$alt_string_val:expr),* $(,)?] #$family:path
+            ),+ $(,)?
+        }
+    ) => {
         #[derive(Debug, Hash, PartialEq, Eq, Clone, serde::Serialize)]
-        pub enum $e_name {
-            $(#[serde(rename=$string_rep)]$name),+,
+        pub enum $name {
+            $(#[serde(rename=$string_val)]$variant),+,
             #[serde(rename="Unknown Model")]
             Other(String),
         }
 
-        impl Default for $e_name {
+        impl Default for $name {
             fn default() -> Self {Self::Other(String::default())}
         }
 
-        impl std::str::FromStr for $e_name {
-            type Err = $error;
-            fn from_str(val: &str) -> Result<Self, Self::Err> {
-                tracing::trace!("{val}");
-                match val {
-                    $(
-                        $string_rep$(| $string_alt)* => Ok($e_name::$name)
-                    ),+,
-                    _ => Ok($e_name::Other(val.to_string()))
-                }
-            }
-        }
-
-        impl std::fmt::Display for $e_name {
+        impl std::fmt::Display for $name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(f, "{}", match self {
                     $(
-                        $e_name::$name => $string_rep
+                        $name::$variant => $string_val
                     ),+,
-                    $e_name::Other(s) => s,
+                    $name::Other(name) => name,
                 })
             }
         }
 
-        impl std::convert::From<u16> for $e_name {
-            fn from(value: u16) -> Self {
-                match value {
+        impl std::str::FromStr for $name {
+            type Err = $error;
+            fn from_str(val: &str) -> Result<Self, Self::Err> {
+                match val {
                     $(
-                        $pid$(| $pid_alt)* => $e_name::$name
+                        $string_val$( | $alt_string_val)* => Ok($name::$variant)
                     ),+,
-                    _ => $e_name::Other(format!("{value}")),
+                    _ => Ok($name::Other(val.to_string()))
                 }
             }
         }
-    }
+
+        impl $name {
+            #[must_use]
+            pub const fn family(&self) -> Option<$fam> {
+                match self {
+                    $(
+                        $name::$variant => Some($family)
+                    ),+,
+                    $name::Other(_) => None,
+                }
+            }
+
+            #[must_use]
+            pub fn from_pid(pid: u16) -> Self {
+                $(
+                    define_models!(@match_pid $name, $variant, pid, $($pid)?);
+                )*
+                $name::Other(format!("PID: {pid:#X}"))
+            }
+        }
+    };
+    (@match_pid $name:ident, $variant:ident, $input:ident, $pid:literal) => {
+        if $input == $pid {
+            return $name::$variant;
+        }
+    };
+    (@match_pid $name:ident, $variant:ident, $input:ident, ) => { };
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Family {
+    _26xx,
+    _3700,
+    Tti,
+    ModularPlatform,
 }
 
 define_models! {
-    Model,
-    InstrumentError,
-    //2600
-    //(_2601A,),
-    //(_2602A,),
-    //(_2611A,),
-    //(_2612A,),
-    //(_2635A,),
-    //(_2636A,),
-    //(_2651A,),
-    //(_2657A,),
-    (_2601B, "2601B", 0x2601),
-    //(_2601B_PULSE,),
-    (_2602B, "2602B", 0x2602),
-    (_2606B, "2606B", 0x2606),
-    (_2611B, "2611B", 0x2611),
-    (_2612B, "2612B", 0x2612),
-    (_2635B, "2635B", 0x2635),
-    (_2636B, "2636B", 0x2636),
-    (_2604B, "2604B", 0x2604),
-    (_2614B, "2614B", 0x2614),
-    (_2634B, "2634B", 0x2634),
-    //(_2601B_L,),
-    //(_2602B_L,),
-    //(_2611B_L,),
-    //(_2612B_L,),
-    //(_2635B_L,),
-    //(_2636B_L,),
-    //(_2604B_L,),
-    //(_2614B_L,),
-    //(_2634B_L,),
+    pub enum Model[InstrumentError, Family] {
+        //2600
+        _2601A <- ["2601"] #Family::_26xx,
+        _2602A <- ["2602"] #Family::_26xx,
+        _2611A <- ["2611"] #Family::_26xx,
+        _2612A <- ["2612"] #Family::_26xx,
+        _2635A <- ["2635"] #Family::_26xx,
+        _2636A <- ["2636"] #Family::_26xx,
+        _2651A <- ["2651"] #Family::_26xx,
+        _2657A <- ["2657"] #Family::_26xx,
+        _2601B[0x2601] <- ["2601B"] #Family::_26xx,
+        _2601BPulse[0x26F1] <- ["2601B-PULSE"] #Family::_26xx,
+        _2602B[0x2602] <- ["2602B"] #Family::_26xx,
+        _2606B[0x2606] <- ["2606B"] #Family::_26xx,
+        _2611B[0x2611] <- ["2611B"] #Family::_26xx,
+        _2612B[0x2612] <- ["2612B"] #Family::_26xx,
+        _2635B[0x2635] <- ["2635B"] #Family::_26xx,
+        _2636B[0x2636] <- ["2636B"] #Family::_26xx,
+        _2604B[0x2604] <- ["2604B"] #Family::_26xx,
+        _2614B[0x2614] <- ["2614B"] #Family::_26xx,
+        _2634B[0x2634] <- ["2634B"] #Family::_26xx,
+        _2601BL <- ["2601B-L"] #Family::_26xx,
+        _2602BL <- ["2602B-L"] #Family::_26xx,
+        _2611BL <- ["2611B-L"] #Family::_26xx,
+        _2612BL <- ["2612B-L"] #Family::_26xx,
+        _2635BL <- ["2635B-L"] #Family::_26xx,
+        _2636BL <- ["2636B-L"] #Family::_26xx,
+        _2604BL <- ["2604B-L"] #Family::_26xx,
+        _2614BL <- ["2614B-L"] #Family::_26xx,
+        _2634BL <- ["2634B-L"] #Family::_26xx,
 
-    // 3706 or 70xB
-    (_3706A, "3706A", 0x3706),
-    //(_3706_SNFP,),
-    //(_3706_S,),
-    //(_3706_NFP,),
-    //(_3706A,),
-    //(_3706A_SNFP,),
-    //(_3706A_S,),
-    //(_3706A_NFP,),
-    //(_707B,),
-    //(_708B,),
-    //(_5880_SRU,),
-    //(_5881_SRU,),
+        // 3706 or 70xB
+        _3706 <- ["3706"] #Family::_3700,
+        _3706S <- ["3706-S"] #Family::_3700,
+        _3706SNFP <- ["3706-SNFP"] #Family::_3700,
+        _3706NFP <- ["3706-NFP"] #Family::_3700,
+        _3706A[0x3706] <- ["3706A"] #Family::_3700,
+        _3706AS <- ["3706A-S"] #Family::_3700,
+        _3706ASNFP <- ["3706A-SNFP"] #Family::_3700,
+        _3706ANFP <- ["3706A-NFP"] #Family::_3700,
+        _707B[0x707B] <- ["707B"] #Family::_3700,
+        _708B[0x708B] <- ["708B"] #Family::_3700,
+        _5880Sru <- ["5880_SRU"] #Family::_3700,
+        _5881Sru <- ["5881_SRU"] #Family::_3700,
 
-    // TTI
-    (_2450, "2450", 0x2450),
-    (_2470, "2470", 0x2470),
-    (DMM7510, "DMM7510", 0x7510),
-    (_2460, "2460", 0x2460),
-    (_2461, "2461", 0x2461),
-    //(_2461_SYS,),
-    (DMM7512, "DMM7512", 0x7512),
-    (DMM6500, "DMM6500", 0x6500),
-    (DAQ6510, "DAQ6510", 0x6510),
+        // TTI
+        _2450[0x2450] <- ["2450"] #Family::Tti,
+        _2470[0x2470] <- ["2470"] #Family::Tti,
+        _2460[0x2460] <- ["2460"] #Family::Tti,
+        _2461[0x2461] <- ["2461"] #Family::Tti,
+        _2461Sys[0x1642] <- ["2461-SYS"] #Family::Tti,
+        DMM7500[0x7500] <- ["DMM7500"] #Family::Tti,
+        DMM7510[0x7510] <- ["DMM7510"] #Family::Tti,
+        DMM7512[0x7512] <- ["DMM7512"] #Family::Tti,
+        DMM6500[0x6500] <- ["DMM6500"] #Family::Tti,
+        DAQ6510[0x6510] <- ["DAQ6510"] #Family::Tti,
 
-    // Modular Platform
-    (MP5103, "MP5103" | "TSPop" | "TSP", 0x5103),
-
+        // Modular Platform
+        MP5103[0x5103] <- ["MP5103"] #Family::ModularPlatform,
+        TSPop <- ["TSPop", "TSP"] #Family::ModularPlatform,
+    }
 }
 
 impl Model {
     #[must_use]
     pub const fn is_tti(&self) -> bool {
-        matches!(
-            self,
-            Self::_2450
-                | Self::_2470
-                | Self::DMM7510
-                | Self::_2460
-                | Self::_2461
-                //| Self::_2461_SYS
-                | Self::DMM7512
-                | Self::DMM6500
-                | Self::DAQ6510
-        )
+        matches!(self.family(), Some(Family::Tti))
     }
 
     #[must_use]
     pub const fn is_mp(&self) -> bool {
-        matches!(self, Self::MP5103)
+        matches!(self.family(), Some(Family::ModularPlatform))
     }
 
     #[must_use]
     pub const fn is_3700_70x(&self) -> bool {
-        matches!(
-            self,
-            Self::_3706A //| Self::_3706_SNFP
-                         //| Self::_3706_S
-                         //| Self::_3706_NFP
-                         //| Self::_3706A_SNFP
-                         //| Self::_3706A_S
-                         //| Self::_3706A_NFP
-                         //| Self::_707B
-                         //| Self::_708B
-                         //| Self::_5880_SRU
-                         //| Self::_5881_SRU
-        )
+        matches!(self.family(), Some(Family::_3700))
     }
 
     #[must_use]
     pub const fn is_2600(&self) -> bool {
-        matches!(
-            self,
-            //| Self::_2602
-            //| Self::_2611
-            //| Self::_2612
-            //| Self::_2635
-            //| Self::_2636
-            //| Self::_2601A
-            //| Self::_2602A
-            //| Self::_2611A
-            //| Self::_2612A
-            //| Self::_2635A
-            //| Self::_2636A
-            //| Self::_2651A
-            //| Self::_2657A
-            Self::_2601B
-            //| Self::_2601B_PULSE
-            | Self::_2602B
-            | Self::_2606B
-            | Self::_2611B
-            | Self::_2612B
-            | Self::_2635B
-            | Self::_2636B
-            | Self::_2604B
-            | Self::_2614B
-            | Self::_2634B //| Self::_2601B_L
-                           //| Self::_2602B_L
-                           //| Self::_2611B_L
-                           //| Self::_2612B_L
-                           //| Self::_2635B_L
-                           //| Self::_2636B_L
-                           //| Self::_2604B_L
-                           //| Self::_2614B_L
-                           //| Self::_2634B_L
-        )
+        matches!(self.family(), Some(Family::_26xx))
     }
 
     #[must_use]
     pub const fn is_other(&self) -> bool {
-        matches!(self, Self::Other(_))
+        self.family().is_none()
     }
 }
