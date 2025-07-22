@@ -7,8 +7,12 @@ use std::time::Duration;
 use reqwest::blocking::Client;
 
 use tracing::{instrument, trace};
+
 #[cfg(feature = "visa")]
-use visa_rs::VisaString;
+use visa_rs::{AsResourceManager, VisaString};
+
+#[cfg(feature = "visa")]
+use tracing::error;
 
 use crate::instrument::info::InstrumentInfo;
 use crate::model::{Model, Vendor};
@@ -54,6 +58,55 @@ impl Display for ConnectionInfo {
 }
 
 impl ConnectionInfo {
+    /// Check to see if this instrument can be connected to.
+    ///
+    /// # Errors
+    /// Errors can come in the form of [`reqwest`] errors or, if the "visa" feature is
+    /// enabled, [`visa_rs`] IO Errors.
+    #[instrument(skip(self))]
+    pub fn ping(&self) -> Result<InstrumentInfo, InstrumentError> {
+        match self {
+            Self::Lan { .. }
+            | Self::Vxi11 { .. }
+            | Self::HiSlip { .. }
+            | Self::VisaSocket { .. } => self.get_info(),
+            Self::Gpib { string } | Self::Usb { string, .. } => self.ping_usb_gpib(string),
+        }
+    }
+
+    #[cfg(feature = "visa")]
+    fn ping_usb_gpib(&self, addr: &str) -> Result<InstrumentInfo, InstrumentError> {
+        let rm = match visa_rs::DefaultRM::new() {
+            Ok(r) => r,
+            Err(e) => {
+                error!("Instrument unavailable: {e}");
+                return Err(e.into());
+            }
+        };
+
+        let Some(expr) = VisaString::from_string(addr.to_string()) else {
+            return Err(InstrumentError::AddressParsingError(format!(
+                "{addr} was not a valid visa resource string"
+            )));
+        };
+
+        match rm.find_res(&expr) {
+            Ok(_) => {}
+            Err(e) => {
+                error!("Unable to find instrument: {e}");
+                return Err(e.into());
+            }
+        }
+        self.get_info()
+    }
+
+    #[cfg(not(feature = "visa"))]
+    #[allow(clippy::unused_self)] // This is the counterpart to the visa enabled-version so we need
+                                  // to keep the same shape.
+    const fn ping_usb_gpib(&self, _: &str) -> Result<InstrumentInfo, InstrumentError> {
+        Err(InstrumentError::NoVisa)
+    }
+
     /// Get the info from this connection information
     ///
     /// # Errors
