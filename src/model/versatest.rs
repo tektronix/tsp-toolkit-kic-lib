@@ -173,6 +173,7 @@ impl Write for Instrument {
 }
 
 impl Flash for Instrument {
+    #[allow(clippy::too_many_lines)] //It is ok for this to be long for now.
     fn flash_firmware(
         &mut self,
         image: &[u8],
