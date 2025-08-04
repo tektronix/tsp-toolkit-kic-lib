@@ -314,13 +314,6 @@ fn parse_tcpip_resource_string(s: &str, parts: &[&str]) -> Result<ConnectionInfo
             })
         }
         Some('I') => match &parts[parts.len().saturating_sub(2)].chars().next() {
-            Some('i') => {
-                let addr = parts[1].parse::<Ipv4Addr>()?;
-                Ok(ConnectionInfo::Vxi11 {
-                    string: s.trim().to_string(),
-                    addr,
-                })
-            }
             Some('h') => {
                 let addr = parts[1].parse::<IpAddr>()?;
                 Ok(ConnectionInfo::HiSlip {
@@ -328,9 +321,14 @@ fn parse_tcpip_resource_string(s: &str, parts: &[&str]) -> Result<ConnectionInfo
                     addr,
                 })
             }
-            _ => Err(InstrumentError::AddressParsingError(format!(
-                "'{s}' did not have a recognized VISA address"
-            ))),
+            _ => { // if it is a TCPIP connection that doesn't explicitly declare `hislip`, just
+                // assume it is VXI-11
+                let addr = parts[1].parse::<Ipv4Addr>()?;
+                Ok(ConnectionInfo::Vxi11 {
+                    string: s.trim().to_string(),
+                    addr,
+                })
+            }
         },
         _ => Err(InstrumentError::AddressParsingError(format!(
             "'{s}' did not have a recognized VISA address"
