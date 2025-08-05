@@ -279,7 +279,7 @@ impl Flash for Instrument {
             self.write_all(format!("if slot[{slot_number}] == null then print([[SLOT_NOT_EXIST]]) else print([[SLOT_EXISTS]]) end").as_bytes())?;
             match read_until(
                 self,
-                &["SLOT_NOT_EXIST".to_string(), "SLOT_EXIST".to_string()],
+                &["SLOT_NOT_EXIST".to_string(), "SLOT_EXISTS".to_string()],
                 1000,
                 Duration::from_millis(1),
             ) {
