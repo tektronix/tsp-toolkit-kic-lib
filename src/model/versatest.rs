@@ -173,6 +173,7 @@ impl Write for Instrument {
 }
 
 impl Flash for Instrument {
+    #[allow(clippy::too_many_lines)] //It is ok for this to be long for now.
     fn flash_firmware(
         &mut self,
         image: &[u8],
@@ -275,6 +276,35 @@ impl Flash for Instrument {
         }
 
         if is_module {
+            self.write_all(format!("if slot[{slot_number}] == null then print([[SLOT_NOT_EXIST]]) else print([[SLOT_EXISTS]]) end").as_bytes())?;
+            match read_until(
+                self,
+                &["SLOT_NOT_EXIST".to_string(), "SLOT_EXIST".to_string()],
+                1000,
+                Duration::from_millis(1),
+            ) {
+                Ok(s) if s == "SLOT_EXISTS" => {
+                    trace!("slot exists");
+                }
+                Ok(s) if s == "SLOT_NOT_EXIST" => {
+                    return Err(InstrumentError::FwUpgradeFailure(
+                        format!("Unable to upgrade module: slot[{slot_number}] is not populated or is not turned on")
+                    ));
+                }
+                Ok(_) => {
+                    trace!("Firmware validity superposition detected! 😱");
+                    return Err(InstrumentError::FwUpgradeFailure(
+                        "Upgrade status unknown: unable to read firmware validity".to_string(),
+                    ));
+                }
+                Err(InstrumentError::Other(s)) if s == String::default() => {
+                    return Err(InstrumentError::FwUpgradeFailure(
+                        "Upgrade status unknown: unable to read firmware validity".to_string(),
+                    ));
+                }
+                Err(e) => return Err(e),
+            }
+
             if let Some(pb) = &spinner {
                 pb.set_message(
                     "Firmware file transferred successfully. Upgrade running on instrument.",
